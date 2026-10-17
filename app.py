@@ -1,5 +1,4 @@
 import os
-import requests
 from flask import Flask, Response
 
 app = Flask(__name__)
@@ -14,56 +13,53 @@ def home():
 
 @app.route('/ver-chapero')
 def ver_chapero():
-    try:
-        session = requests.Session()
-        login_url = f"{EMOVA_BASE}/api/login"
-        payload = {"usuario": EMOVA_USER, "password": EMOVA_PASS}
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Content-Type": "application/json"
-        }
-        
-        # Realizamos el login invisible en el servidor
-        res = session.post(login_url, json=payload, headers=headers, timeout=10)
-        
-        token_script = ""
-        try:
-            data = res.json()
-            # Capturamos posibles tokens devueltos por la API de Emova
-            token = data.get("token") or data.get("access_token") or data.get("accessToken")
-            if token:
-                token_script = f"localStorage.setItem('token', '{token}'); localStorage.setItem('access_token', '{token}');"
-        except:
-            pass
+    # Página puente con auto-envío de credenciales por formulario oficial
+    bridge_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Autenticando Línea B...</title>
+        <style>
+            body {{ background-color: #121212; color: #ffffff; font-family: sans-serif; text-align: center; padding-top: 25vh; }}
+            .spinner {{ border: 4px solid rgba(255,255,255,0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: #09f; animation: spin 1s linear infinite; margin: 20px auto; }}
+            @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
+        </style>
+    </head>
+    <body>
+        <h3>Conectando con el Chapero Electrónico...</h3>
+        <div class="spinner"></div>
+        <p>Iniciando sesión de forma segura...</p>
 
-        # Página puente que inyecta la sesión y entra directo a la Línea B
-        bridge_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <base href="{EMOVA_BASE}/ce/">
-            <meta charset="UTF-8">
-            <title>Abriendo Línea B...</title>
-        </head>
-        <body style="background-color: #121212; color: #ffffff; font-family: sans-serif; text-align: center; padding-top: 20vh;">
-            <h3>Conectando con Línea B...</h3>
-            <script>
-                try {{
-                    {token_script}
-                }} catch (e) {{}}
-                
-                // Redirección automática al panel de la Línea B
-                setTimeout(() => {{
+        <!-- Formulario oculto que realiza el login nativo en el navegador -->
+        <form id="loginForm" action="{EMOVA_BASE}/api/login" method="POST" style="display:none;">
+            <input type="hidden" name="usuario" value="{EMOVA_USER}">
+            <input type="hidden" name="password" value="{EMOVA_PASS}">
+        </form>
+
+        <script>
+            setTimeout(() => {{
+                // Enviamos el formulario automáticamente y luego saltamos a la Línea B
+                const form = document.getElementById('loginForm');
+                if (form) {{
+                    fetch(form.action, {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{ usuario: "{EMOVA_USER}", password: "{EMOVA_PASS}" }})
+                    }}).then(() => {{
+                        window.location.href = "{EMOVA_BASE}/ce/#/lineaB";
+                    }}).catch(() => {{
+                        window.location.href = "{EMOVA_BASE}/ce/#/lineaB";
+                    }});
+                }} else {{
                     window.location.href = "{EMOVA_BASE}/ce/#/lineaB";
-                }}, 300);
-            </script>
-        </body>
-        </html>
-        """
-        return Response(bridge_html, content_type="text/html")
-        
-    except Exception as e:
-        return f"<h3>Error al conectar con Emova:</h3><p>{str(e)}</p>", 500
+                }}
+            }}, 400);
+        </script>
+    </body>
+    </html>
+    """
+    return Response(bridge_html, content_type="text/html")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
