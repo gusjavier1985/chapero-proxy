@@ -1,6 +1,6 @@
 import os
 import requests
-from flask import Flask, Response
+from flask import Flask, Response, request
 
 app = Flask(__name__)
 
@@ -8,64 +8,44 @@ EMOVA_USER = os.environ.get("EMOVA_USER", "")
 EMOVA_PASS = os.environ.get("EMOVA_PASS", "")
 EMOVA_BASE = "https://chapero.emova.com.ar"
 
-@app.route('/')
-def home():
-    return "Proxy Chapero Activo 🚆"
+# Sesión global para mantener las cookies y credenciales activas
+session = requests.Session()
+is_logged_in = False
 
-@app.route('/ver-chapero')
-def ver_chapero():
+def ensure_logged_in():
+    global is_logged_in
+    if not is_logged_in:
+        try:
+            login_url = f"{EMOVA_BASE}/api/login"
+            session.post(login_url, json={"usuario": EMOVA_USER, "password": EMOVA_PASS}, timeout=10)
+            is_logged_in = True
+        except Exception as e:
+            print(f"Error en login automático: {e}")
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def proxy(path):
+    ensure_logged_in()
+    target_url = f"{EMOVA_BASE}/{path}"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode('utf-8')}"
+        
+    # Copiamos los headers del navegador del usuario
+    headers = {key: value for (key, value) in request.headers if key.lower() != 'host'}
+    
     try:
-        resp = requests.get(EMOVA_BASE, timeout=10)
-        html_content = resp.text
-        
-        # Script de auto-login usando marcadores seguros
-        auto_login_script = """
-        <script>
-            window.addEventListener('DOMContentLoaded', () => {
-                setTimeout(() => {
-                    const inputs = document.querySelectorAll('input');
-                    let userInp = null, passInp = null;
-                    inputs.forEach(i => {
-                        if (i.type === 'text' || i.type === 'email' || i.placeholder?.toLowerCase().includes('usuario')) userInp = i;
-                        if (i.type === 'password') passInp = i;
-                    });
-                    
-                    if (userInp && passInp) {
-                        userInp.value = "USER_PLACEHOLDER";
-                        userInp.dispatchEvent(new Event('input', { bubbles: true }));
-                        
-                        passInp.value = "PASS_PLACEHOLDER";
-                        passInp.dispatchEvent(new Event('input', { bubbles: true }));
-                        
-                        const buttons = document.querySelectorAll('button, input[type="submit"]');
-                        buttons.forEach(b => {
-                            if (b.innerText.toLowerCase().includes('ingresar') || b.value.toLowerCase().includes('ingresar')) {
-                                b.click();
-                            }
-                        });
-                    }
-                }, 500);
-            });
-        </script>
-        """
-        
-        # Reemplazamos los marcadores con tus credenciales de forma segura
-        auto_login_script = auto_login_script.replace("USER_PLACEHOLDER", EMOVA_USER)
-        auto_login_script = auto_login_script.replace("PASS_PLACEHOLDER", EMOVA_PASS)
-        
-        # Inyectamos el base href y el script
-        if "<head>" in html_content:
-            html_content = html_content.replace("<head>", f'<head><base href="{EMOVA_BASE}/">')
-            
-        if "</body>" in html_content:
-            html_content = html_content.replace("</body>", auto_login_script + "</body>")
+        if request.method == 'POST':
+            resp = session.post(target_url, data=request.form, json=request.json, headers=headers, allow_redirects=False, timeout=15)
         else:
-            html_content += auto_login_script
+            resp = session.get(target_url, headers=headers, allow_redirects=False, timeout=15)
             
-        return Response(html_content, content_type="text/html")
+        # Filtramos headers de conexión para evitar conflictos
+        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+        resp_headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
         
+        return Response(resp.content, resp.status_code, resp_headers)
     except Exception as e:
-        return f"<h3>Error al conectar:</h3><p>{str(e)}</p>", 500
+        return f"Error en el proxy: {str(e)}", 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
