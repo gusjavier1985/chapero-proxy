@@ -22,46 +22,36 @@ def posiciones_linea_b():
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json"
     }
-    
-    # 1. Primero navegamos la página principal para levantar tokens/cookies iniciales
-    try:
-        session.get(f"{EMOVA_BASE}/ce/", headers=headers, timeout=5)
-    except:
-        pass
 
-    payload = {"usuario": EMOVA_USER, "password": EMOVA_PASS}
-    
-    # Probamos las variantes sobre el endpoint validado /ce/
-    urls_test = [
-        f"{EMOVA_BASE}/ce/api/login",
-        f"{EMOVA_BASE}/ce/login",
-        f"{EMOVA_BASE}/ce/api/autenticar"
-    ]
-    
-    for login_url in urls_test:
-        try:
-            # Probamos en JSON
-            resp = session.post(login_url, json=payload, headers=headers, timeout=5)
-            if resp.status_code in [200, 201]:
-                # Éxito: pedimos las posiciones
-                resp_datos = session.get(f"{EMOVA_BASE}/ce/api/lineaB/posiciones", headers=headers, timeout=5)
-                return jsonify(resp_datos.json() if resp_datos.status_code == 200 else {"status": "login_ok", "data_resp": resp_datos.text})
-            
-            # Si da 405, probamos enviando datos como formulario tradicional
-            if resp.status_code == 405:
-                resp_form = session.post(login_url, data=payload, timeout=5)
-                if resp_form.status_code in [200, 201]:
-                    resp_datos = session.get(f"{EMOVA_BASE}/ce/api/lineaB/posiciones", headers=headers, timeout=5)
-                    return jsonify(resp_datos.json() if resp_datos.status_code == 200 else {"status": "login_ok", "data_resp": resp_datos.text})
-        except Exception as e:
-            pass
-
-    # Si la API de la SPA no expone login directo, consultamos el estado directamente
     try:
-        resp_directa = session.get(f"{EMOVA_BASE}/ce/api/lineaB/posiciones", headers=headers, timeout=5)
-        if resp_directa.status_code == 200:
-            return jsonify(resp_directa.json())
-        return jsonify({"info": "Ruta /ce/ confirmada. Respuesta del servidor:", "status": resp_directa.status_code, "body": resp_directa.text[:300]})
+        # Cargar página inicial para obtener cookies de sesión
+        init_resp = session.get(f"{EMOVA_BASE}/ce/", headers=headers, timeout=10)
+        
+        payload = {"usuario": EMOVA_USER, "password": EMOVA_PASS}
+        
+        # Probamos consultar endpoints comunes de datos o el estado directo
+        endpoints_datos = [
+            f"{EMOVA_BASE}/ce/api/lineaB/posiciones",
+            f"{EMOVA_BASE}/ce/api/posiciones",
+            f"{EMOVA_BASE}/api/lineaB/posiciones"
+        ]
+
+        resultados = {}
+        for url in endpoints_datos:
+            res = session.get(url, headers=headers, timeout=5)
+            # Guardamos los primeros 200 caracteres de cada respuesta
+            resultados[url] = {
+                "status_code": res.status_code,
+                "content_type": res.headers.get('Content-Type', ''),
+                "body_snippet": res.text[:200]
+            }
+
+        return jsonify({
+            "init_status": init_resp.status_code,
+            "session_cookies": list(session.cookies.keys()),
+            "respuestas_endpoints": resultados
+        })
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
