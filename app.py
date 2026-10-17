@@ -1,6 +1,6 @@
 import os
 import requests
-from flask import Flask, Response, request
+from flask import Flask, Response
 
 app = Flask(__name__)
 
@@ -8,44 +8,62 @@ EMOVA_USER = os.environ.get("EMOVA_USER", "")
 EMOVA_PASS = os.environ.get("EMOVA_PASS", "")
 EMOVA_BASE = "https://chapero.emova.com.ar"
 
-# Sesión global para mantener las cookies y credenciales activas
-session = requests.Session()
-is_logged_in = False
+@app.route('/')
+def home():
+    return "Proxy Chapero Activo 🚆"
 
-def ensure_logged_in():
-    global is_logged_in
-    if not is_logged_in:
-        try:
-            login_url = f"{EMOVA_BASE}/api/login"
-            session.post(login_url, json={"usuario": EMOVA_USER, "password": EMOVA_PASS}, timeout=10)
-            is_logged_in = True
-        except Exception as e:
-            print(f"Error en login automático: {e}")
-
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def proxy(path):
-    ensure_logged_in()
-    target_url = f"{EMOVA_BASE}/{path}"
-    if request.query_string:
-        target_url += f"?{request.query_string.decode('utf-8')}"
-        
-    # Copiamos los headers del navegador del usuario
-    headers = {key: value for (key, value) in request.headers if key.lower() != 'host'}
-    
+@app.route('/ver-chapero')
+def ver_chapero():
     try:
-        if request.method == 'POST':
-            resp = session.post(target_url, data=request.form, json=request.json, headers=headers, allow_redirects=False, timeout=15)
-        else:
-            resp = session.get(target_url, headers=headers, allow_redirects=False, timeout=15)
-            
-        # Filtramos headers de conexión para evitar conflictos
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        resp_headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
+        session = requests.Session()
+        login_url = f"{EMOVA_BASE}/api/login"
+        payload = {"usuario": EMOVA_USER, "password": EMOVA_PASS}
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Content-Type": "application/json"
+        }
         
-        return Response(resp.content, resp.status_code, resp_headers)
+        # Realizamos el login invisible en el servidor
+        res = session.post(login_url, json=payload, headers=headers, timeout=10)
+        
+        token_script = ""
+        try:
+            data = res.json()
+            # Capturamos posibles tokens devueltos por la API de Emova
+            token = data.get("token") or data.get("access_token") or data.get("accessToken")
+            if token:
+                token_script = f"localStorage.setItem('token', '{token}'); localStorage.setItem('access_token', '{token}');"
+        except:
+            pass
+
+        # Página puente que inyecta la sesión y entra directo a la Línea B
+        bridge_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <base href="{EMOVA_BASE}/ce/">
+            <meta charset="UTF-8">
+            <title>Abriendo Línea B...</title>
+        </head>
+        <body style="background-color: #121212; color: #ffffff; font-family: sans-serif; text-align: center; padding-top: 20vh;">
+            <h3>Conectando con Línea B...</h3>
+            <script>
+                try {{
+                    {token_script}
+                }} catch (e) {{}}
+                
+                // Redirección automática al panel de la Línea B
+                setTimeout(() => {{
+                    window.location.href = "{EMOVA_BASE}/ce/#/lineaB";
+                }}, 300);
+            </script>
+        </body>
+        </html>
+        """
+        return Response(bridge_html, content_type="text/html")
+        
     except Exception as e:
-        return f"Error en el proxy: {str(e)}", 500
+        return f"<h3>Error al conectar con Emova:</h3><p>{str(e)}</p>", 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
