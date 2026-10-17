@@ -6,51 +6,84 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-EMOVA_USER = os.environ.get("EMOVA_USER", "")
-EMOVA_PASS = os.environ.get("EMOVA_PASS", "")
 EMOVA_BASE = "https://chapero.emova.com.ar"
+# Token extraído directamente de la inspección de red
+AUTH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MzEzLCJ1c2VybmFtZSI6Im1tZW50YSIsImxpbmVhcyI6IkIiLCJhcmVhIjoiVHJhZmljbyIsInBlcm1pc29zIjpbInRyYWZpY28iLCJ0YWxsZXIiLCJGVCIsIm5jIl0sImlhdCI6MTc5MjI1MTg5MSwiZXhwIjoxNzkyMjczNDkxfQ.fiFrGmDPoXuhLz_Tal-4GT0lZYNe7v4Y_o084y4rKEQ"
 
 @app.route('/')
 def home():
-    return jsonify({"status": "ok", "message": "API Proxy Chapero Línea B activa 🚆"})
+    return jsonify({"status": "ok", "message": "API Proxy Chapero GraphQL Línea B activa 🚆"})
 
 @app.route('/api/posiciones-linea-b', methods=['GET'])
 def posiciones_linea_b():
-    session = requests.Session()
+    url_graphql = f"{EMOVA_BASE}/graphql"
+    
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json"
+        "Accept": "application/graphql-response+json,application/json;q=0.9",
+        "Content-Type": "application/json",
+        "x-client-app": "sgf-frontend",
+        "x-client-version": "7.52.0",
+        "x-auth-token": AUTH_TOKEN,
+        "Origin": EMOVA_BASE,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+
+    # Query GraphQL de Maniobras extraída de Eruda
+    query_payload = {
+        "operationName": "Maniobras",
+        "variables": {
+            "filter": {
+                "inicio": "2026-10-10 00:00:00",
+                "fin": "2026-10-17 23:59:59"
+            }
+        },
+        "extensions": {
+            "clientLibrary": {
+                "name": "@apollo/client",
+                "version": "4.2.9"
+            }
+        },
+        "query": """query Maniobras($filter: ManiobrasFilterInput) {
+  maniobras(filter: $filter) {
+    idManiobra
+    linea
+    formacion
+    destino
+    boleta
+    fechaApertura
+    fechaCierre
+    usuarioApertura
+    usuarioCierre
+    comentarioApertura
+    comentarioCierre
+    estado
+    __typename
+  }
+}"""
     }
 
     try:
-        # Cargar página inicial para obtener cookies de sesión
-        init_resp = session.get(f"{EMOVA_BASE}/ce/", headers=headers, timeout=10)
+        response = requests.post(url_graphql, json=query_payload, headers=headers, timeout=10)
         
-        payload = {"usuario": EMOVA_USER, "password": EMOVA_PASS}
-        
-        # Probamos consultar endpoints comunes de datos o el estado directo
-        endpoints_datos = [
-            f"{EMOVA_BASE}/ce/api/lineaB/posiciones",
-            f"{EMOVA_BASE}/ce/api/posiciones",
-            f"{EMOVA_BASE}/api/lineaB/posiciones"
-        ]
-
-        resultados = {}
-        for url in endpoints_datos:
-            res = session.get(url, headers=headers, timeout=5)
-            # Guardamos los primeros 200 caracteres de cada respuesta
-            resultados[url] = {
-                "status_code": res.status_code,
-                "content_type": res.headers.get('Content-Type', ''),
-                "body_snippet": res.text[:200]
-            }
-
-        return jsonify({
-            "init_status": init_resp.status_code,
-            "session_cookies": list(session.cookies.keys()),
-            "respuestas_endpoints": resultados
-        })
+        if response.status_code == 200:
+            datos_raw = response.json()
+            maniobras = datos_raw.get("data", {}).get("maniobras", [])
+            
+            # Filtramos únicamente las maniobras de la Línea B
+            maniobras_linea_b = [m for m in maniobras if m.get("linea") == "B"]
+            
+            return jsonify({
+                "status": "success",
+                "linea": "B",
+                "total_maniobras_b": len(maniobras_linea_b),
+                "data": maniobras_linea_b
+            })
+        else:
+            return jsonify({
+                "error": "Error de comunicación con GraphQL",
+                "status_code": response.status_code,
+                "raw_response": response.text
+            }), response.status_code
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
