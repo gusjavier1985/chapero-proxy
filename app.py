@@ -15,47 +15,50 @@ def home():
 @app.route('/ver-chapero')
 def ver_chapero():
     try:
-        # Descargamos la estructura base de la página de Emova
         resp = requests.get(EMOVA_BASE, timeout=10)
         html_content = resp.text
         
-        # Script automático que se ejecuta en el navegador del usuario para loguearse solo
-        auto_login_script = f"""
+        # Script de auto-login usando marcadores seguros
+        auto_login_script = """
         <script>
-            window.addEventListener('DOMContentLoaded', () => {{
-                setTimeout(() => {{
+            window.addEventListener('DOMContentLoaded', () => {
+                setTimeout(() => {
                     const inputs = document.querySelectorAll('input');
                     let userInp = null, passInp = null;
-                    inputs.forEach(i => {{
+                    inputs.forEach(i => {
                         if (i.type === 'text' || i.type === 'email' || i.placeholder?.toLowerCase().includes('usuario')) userInp = i;
                         if (i.type === 'password') passInp = i;
-                    }});
+                    });
                     
-                    if (userInp && passInp) {{
-                        userInp.value = "{EMOVA_USER}";
-                        userInp.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    if (userInp && passInp) {
+                        userInp.value = "USER_PLACEHOLDER";
+                        userInp.dispatchEvent(new Event('input', { bubbles: true }));
                         
-                        passInp.value = "{EMOVA_PASS}";
-                        passInp.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        passInp.value = "PASS_PLACEHOLDER";
+                        passInp.dispatchEvent(new Event('input', { bubbles: true }));
                         
                         const buttons = document.querySelectorAll('button, input[type="submit"]');
-                        buttons.forEach(b => {{
-                            if (b.innerText.toLowerCase().includes('ingresar') || b.value.toLowerCase().includes('ingresar')) {{
+                        buttons.forEach(b => {
+                            if (b.innerText.toLowerCase().includes('ingresar') || b.value.toLowerCase().includes('ingresar')) {
                                 b.click();
-                            }}
-                        }});
-                    }}
-                }}, 500);
+                            }
+                        });
+                    }
+                }, 500);
             });
         </script>
         """
         
-        # Inyectamos el base href para los estilos y el script de auto-login
+        # Reemplazamos los marcadores con tus credenciales de forma segura
+        auto_login_script = auto_login_script.replace("USER_PLACEHOLDER", EMOVA_USER)
+        auto_login_script = auto_login_script.replace("PASS_PLACEHOLDER", EMOVA_PASS)
+        
+        # Inyectamos el base href y el script
         if "<head>" in html_content:
             html_content = html_content.replace("<head>", f'<head><base href="{EMOVA_BASE}/">')
             
         if "</body>" in html_content:
-            html_content = html_content.replace("</body>", f"{auto_login_script}</body>")
+            html_content = html_content.replace("</body>", auto_login_script + "</body>")
         else:
             html_content += auto_login_script
             
@@ -66,4 +69,3 @@ def ver_chapero():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-    
