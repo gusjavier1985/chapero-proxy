@@ -4,7 +4,6 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-# Permitir CORS desde cualquier origen para que Base44 no tenga bloqueos
 CORS(app)
 
 EMOVA_BASE = "https://chapero.emova.com.ar"
@@ -26,17 +25,16 @@ def posiciones_linea_b():
         "Content-Type": "application/json"
     }
 
-    # 1. Obtener requerimientos del día
-    requerimientos_data = {"servicio": 9, "requeridos": 9, "disponibles": 18}
-    try:
-        req_resp = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=5)
-        if req_resp.status_code == 200:
-            requerimientos_data = req_resp.json()
-    except Exception:
-        pass
+    # 1. Contadores superiores estructurados
+    requerimientos_data = {
+        "servicio": 10,
+        "requeridos": 9,
+        "disponibles": 18
+    }
 
-    # 2. Obtener maniobras GraphQL
+    # 2. Obtener maniobras GraphQL y extraer formaciones
     maniobras_linea_b = []
+    formaciones_activas = []
     try:
         gql_headers = {
             **headers,
@@ -55,6 +53,14 @@ def posiciones_linea_b():
             datos_raw = gql_resp.json()
             maniobras = datos_raw.get("data", {}).get("maniobras", [])
             maniobras_linea_b = [m for m in maniobras if m.get("linea") == "B"]
+            
+            for m in maniobras_linea_b:
+                if m.get("formacion") and m.get("destino"):
+                    formaciones_activas.append({
+                        "formacion": m.get("formacion"),
+                        "destino": m.get("destino"),
+                        "estado": m.get("estado")
+                    })
     except Exception:
         pass
 
@@ -62,6 +68,7 @@ def posiciones_linea_b():
         "status": "success",
         "linea": "B",
         "requerimientos": requerimientos_data,
+        "formaciones": formaciones_activas,
         "total_maniobras_b": len(maniobras_linea_b),
         "maniobras": maniobras_linea_b
     })
