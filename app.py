@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta
 import requests
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -7,7 +8,7 @@ app = Flask(__name__)
 CORS(app)
 
 EMOVA_BASE = "https://chapero.emova.com.ar"
-AUTH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MzEzLCJ1c2VybmFtZSI6Im1tZW50YSIsImxpbmVhcyI6IkIiLCJhcmVhIjoiVHJhZmljbyIsInBlcm1pc29zIjpbInRyYWZpY28iLCJ0YWxsZXIiLCJGVCIsIm5jIl0sImlhdCI6MTc5MjI1MTg5MSwiZXhwIjoxNzkyMjczNDkxfQ.fiFrGmDPoXuhLz_Tal-4GT0lZYNe7v4Y_o084y4rKEQ"
+AUTH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MzEzLCJ1c2VybmFtZSI6Im1tZW50YSIsImxpbmVhcyI6IkIiLCJhcmVhIjoiVHJhZmljbyIsInBlcm1pc29zIjpbInRyYWZpY28iLCJ0YWxsZxrIiwJGVCIsIm5jIl0sImlhdCI6MTc5MjI1MTg5MSwiZXhwIjoxNzkyMjczNDkxfQ.fiFrGmDPoXuhLz_Tal-4GT0lZYNe7v4Y_o084y4rKEQ"
 
 @app.route('/')
 def home():
@@ -25,14 +26,24 @@ def posiciones_linea_b():
         "Content-Type": "application/json"
     }
 
-    # 1. Contadores superiores estructurados
+    # 1. Requerimientos del día
     requerimientos_data = {
         "servicio": 10,
         "requeridos": 9,
         "disponibles": 18
     }
+    try:
+        req_resp = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=5)
+        if req_resp.status_code == 200:
+            requerimientos_data = req_resp.json()
+    except Exception:
+        pass
 
-    # 2. Obtener maniobras GraphQL y extraer formaciones
+    # 2. Fechas dinámicas automáticas (desde hace 3 días hasta mañana)
+    hoy = datetime.now()
+    inicio_str = (hoy - timedelta(days=3)).strftime("%Y-%m-%d 00:00:00")
+    fin_str = (hoy + timedelta(days=1)).strftime("%Y-%m-%d 23:59:59")
+
     maniobras_linea_b = []
     formaciones_activas = []
     try:
@@ -44,7 +55,7 @@ def posiciones_linea_b():
         }
         query_payload = {
             "operationName": "Maniobras",
-            "variables": {"filter": {"inicio": "2026-10-10 00:00:00", "fin": "2026-10-17 23:59:59"}},
+            "variables": {"filter": {"inicio": inicio_str, "fin": fin_str}},
             "extensions": {"clientLibrary": {"name": "@apollo/client", "version": "4.2.9"}},
             "query": "query Maniobras($filter: ManiobrasFilterInput) {\n  maniobras(filter: $filter) {\n    idManiobra\n    linea\n    formacion\n    destino\n    boleta\n    fechaApertura\n    fechaCierre\n    usuarioApertura\n    usuarioCierre\n    comentarioApertura\n    comentarioCierre\n    estado\n    __typename\n  }\n}"
         }
@@ -54,12 +65,16 @@ def posiciones_linea_b():
             maniobras = datos_raw.get("data", {}).get("maniobras", [])
             maniobras_linea_b = [m for m in maniobras if m.get("linea") == "B"]
             
+            # Mapear formaciones y destinos para la grilla
             for m in maniobras_linea_b:
-                if m.get("formacion") and m.get("destino"):
+                formacion = m.get("formacion")
+                destino = m.get("destino")
+                if formacion:
                     formaciones_activas.append({
-                        "formacion": m.get("formacion"),
-                        "destino": m.get("destino"),
-                        "estado": m.get("estado")
+                        "formacion": formacion,
+                        "destino": destino or "",
+                        "estado": m.get("estado", "CONFIRMADA"),
+                        "fechaApertura": m.get("fechaApertura")
                     })
     except Exception:
         pass
