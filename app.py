@@ -1,6 +1,6 @@
 import os
 import requests
-from flask import Flask, Response, request, redirect
+from flask import Flask, Response
 
 app = Flask(__name__)
 
@@ -15,31 +15,55 @@ def home():
 @app.route('/ver-chapero')
 def ver_chapero():
     try:
-        session = requests.Session()
+        # Descargamos la estructura base de la página de Emova
+        resp = requests.get(EMOVA_BASE, timeout=10)
+        html_content = resp.text
         
-        # 1. Intentar Login en Emova
-        login_url = f"{EMOVA_BASE}/api/login"
-        payload = {"usuario": EMOVA_USER, "password": EMOVA_PASS}
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Content-Type": "application/json"
-        }
+        # Script automático que se ejecuta en el navegador del usuario para loguearse solo
+        auto_login_script = f"""
+        <script>
+            window.addEventListener('DOMContentLoaded', () => {{
+                setTimeout(() => {{
+                    const inputs = document.querySelectorAll('input');
+                    let userInp = null, passInp = null;
+                    inputs.forEach(i => {{
+                        if (i.type === 'text' || i.type === 'email' || i.placeholder?.toLowerCase().includes('usuario')) userInp = i;
+                        if (i.type === 'password') passInp = i;
+                    }});
+                    
+                    if (userInp && passInp) {{
+                        userInp.value = "{EMOVA_USER}";
+                        userInp.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        
+                        passInp.value = "{EMOVA_PASS}";
+                        passInp.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        
+                        const buttons = document.querySelectorAll('button, input[type="submit"]');
+                        buttons.forEach(b => {{
+                            if (b.innerText.toLowerCase().includes('ingresar') || b.value.toLowerCase().includes('ingresar')) {{
+                                b.click();
+                            }}
+                        }});
+                    }}
+                }}, 500);
+            });
+        </script>
+        """
         
-        login_res = session.post(login_url, json=payload, headers=headers, timeout=10)
-        
-        # 2. Pedir la vista de la Línea B
-        target_url = f"{EMOVA_BASE}/ce/#/lineaB"
-        resp = session.get(target_url, headers=headers, timeout=10)
-        
-        # Inyectar etiqueta base para que cargue los estilos y scripts desde Emova
-        content = resp.text
-        if "<head>" in content:
-            content = content.replace("<head>", f'<head><base href="{EMOVA_BASE}/ce/">')
+        # Inyectamos el base href para los estilos y el script de auto-login
+        if "<head>" in html_content:
+            html_content = html_content.replace("<head>", f'<head><base href="{EMOVA_BASE}/">')
             
-        return Response(content, content_type="text/html")
+        if "</body>" in html_content:
+            html_content = html_content.replace("</body>", f"{auto_login_script}</body>")
+        else:
+            html_content += auto_login_script
+            
+        return Response(html_content, content_type="text/html")
         
     except Exception as e:
-        return f"<h3>Error al conectar con Emova:</h3><p>{str(e)}</p>", 500
+        return f"<h3>Error al conectar:</h3><p>{str(e)}</p>", 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+    
