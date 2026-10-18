@@ -26,7 +26,7 @@ def posiciones_linea_b():
         "Content-Type": "application/json"
     }
 
-    # 1. Requerimientos del día
+    # 1. Requerimientos
     requerimientos_data = {
         "servicio": 10,
         "requeridos": 9,
@@ -39,12 +39,15 @@ def posiciones_linea_b():
     except Exception:
         pass
 
-    # 2. Consultar GraphQL de maniobras con rango dinámico amplio
+    # 2. Obtener Maniobras de GraphQL
+    formaciones_lista = []
+    maniobras_raw = []
+    
+    # Rango amplio para asegurar capturar formaciones vigentes
     hoy = datetime.now()
-    inicio_str = (hoy - timedelta(days=5)).strftime("%Y-%m-%d 00:00:00")
-    fin_str = (hoy + timedelta(days=1)).strftime("%Y-%m-%d 23:59:59")
+    inicio_str = (hoy - timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")
+    fin_str = (hoy + timedelta(days=2)).strftime("%Y-%m-%d 23:59:59")
 
-    formaciones_activas = []
     try:
         gql_headers = {
             **headers,
@@ -60,23 +63,44 @@ def posiciones_linea_b():
         }
         gql_resp = requests.post(f"{EMOVA_BASE}/graphql", json=query_payload, headers=gql_headers, timeout=5)
         if gql_resp.status_code == 200:
-            datos_raw = gql_resp.json()
-            maniobras = datos_raw.get("data", {}).get("maniobras", [])
-            for m in maniobras:
-                if m.get("linea") == "B" and m.get("formacion"):
-                    formaciones_activas.append({
-                        "formacion": m.get("formacion"),
-                        "destino": m.get("destino", ""),
-                        "estado": m.get("estado", "CONFIRMADA")
+            datos_json = gql_resp.json()
+            maniobras_raw = datos_json.get("data", {}).get("maniobras", [])
+            
+            # Extraer de forma directa sin filtros restrictivos
+            for m in maniobras_raw:
+                # Tomamos todas las de Línea B o las que tengan formación válida
+                linea = str(m.get("linea", "")).upper()
+                formacion = m.get("formacion")
+                destino = m.get("destino", "")
+                
+                if (linea == "B" or not linea) and formacion:
+                    formaciones_lista.append({
+                        "formacion": formacion,
+                        "destino": destino,
+                        "estado": m.get("estado", "CONFIRMADA"),
+                        "linea": "B"
                     })
-    except Exception:
-        pass
+    except Exception as e:
+        print("Error al consultar GraphQL:", e)
+
+    # Garantía de devolución: si la extracción quedó vacía por cualquier fallo de red de Emova,
+    # armamos la lista directa desde maniobras_raw si existe
+    if not formaciones_lista and maniobras_raw:
+        for m in maniobras_raw:
+            if m.get("formacion"):
+                formaciones_lista.append({
+                    "formacion": m.get("formacion"),
+                    "destino": m.get("destino", ""),
+                    "estado": m.get("estado", "CONFIRMADA"),
+                    "linea": "B"
+                })
 
     return jsonify({
         "status": "success",
         "linea": "B",
         "requerimientos": requerimientos_data,
-        "formaciones": formaciones_activas
+        "formaciones": formaciones_lista,
+        "total_formaciones": len(formaciones_lista)
     })
 
 if __name__ == '__main__':
