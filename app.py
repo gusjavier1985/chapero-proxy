@@ -8,7 +8,8 @@ app = Flask(__name__)
 CORS(app)
 
 EMOVA_BASE = "https://chapero.emova.com.ar"
-AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MzEzLCJ1c2VybmFtZSI6Im1tZW50YSIsImxpbmVhcyI6IkIiLCJhcmVhIjoiVHJhZmljbyIsInBlcm1pc29zIjpbInRyYWZpY28iLCJ0YWxsZXIiLCJGVCIsIm5jIl0sImlhdCI6MTc5MjI1MTg5MSwiZXhwIjoxNzkyMjczNDkxfQ.fiFrGmDPoXuhLz_Tal-4GT0lZYNe7v4Y_o084y4rKEQ")
+# Token activo recién capturado desde la sesión de Chapero
+AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MzEzLCJ1c2VybmFtZSI6Im1tZW50YSIsImxpbmVhcyI6IkIiLCJhcmVhIjoiVHJhZmljbyIsInBlcm1pc29zIjpbInRyYWZpY28iLCJ0YWxsZXIiLCJGVCIsIm5jIl0sImlhdCI6MTc5MjM0Nzg4OCwiZXhwIjoxNzkyMzY5NDg4fQ.LSOoXw-tEJAxGj_Zi0RegQ07KH7y-zK12DlMtoPkSVk")
 
 @app.route('/')
 def home():
@@ -32,10 +33,10 @@ def posiciones_linea_b():
     except Exception:
         pass
 
-    # 2. GraphQL con un rango brutal (30 días atrás y adelante) para asegurar captura
+    # 2. GraphQL Maniobras con Token Activo
     hoy = datetime.now()
-    inicio_str = (hoy - timedelta(days=30)).strftime("%Y-%m-%d 00:00:00")
-    fin_str = (hoy + timedelta(days=30)).strftime("%Y-%m-%d 23:59:59")
+    inicio_str = (hoy - timedelta(days=5)).strftime("%Y-%m-%d 00:00:00")
+    fin_str = (hoy + timedelta(days=2)).strftime("%Y-%m-%d 23:59:59")
 
     raw_response = None
     formaciones_encontradas = []
@@ -62,12 +63,11 @@ def posiciones_linea_b():
             raw_response = raw_json
             maniobras = (raw_json.get("data") or {}).get("maniobras") or []
             
-            # REGLA SUPER PERMISIVA: Agregamos todo lo que venga sin filtrar de más
             for m in maniobras:
                 if isinstance(m, dict):
                     formaciones_encontradas.append({
-                        "formacion": m.get("formacion", "SIN TREN"),
-                        "destino": m.get("destino", "SIN DESTINO"),
+                        "formacion": m.get("formacion", ""),
+                        "destino": m.get("destino", ""),
                         "estado": m.get("estado", "CONFIRMADA"),
                         "linea": m.get("linea", "B")
                     })
