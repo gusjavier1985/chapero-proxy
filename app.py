@@ -8,7 +8,6 @@ app = Flask(__name__)
 CORS(app)
 
 EMOVA_BASE = "https://chapero.emova.com.ar"
-# Leemos el token desde variables de entorno de Render o usamos el fallback
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MzEzLCJ1c2VybmFtZSI6Im1tZW50YSIsImxpbmVhcyI6IkIiLCJhcmVhIjoiVHJhZmljbyIsInBlcm1pc29zIjpbInRyYWZpY28iLCJ0YWxsZXIiLCJGVCIsIm5jIl0sImlhdCI6MTc5MjI1MTg5MSwiZXhwIjoxNzkyMjczNDkxfQ.fiFrGmDPoXuhLz_Tal-4GT0lZYNe7v4Y_o084y4rKEQ")
 
 @app.route('/')
@@ -32,13 +31,13 @@ def posiciones_linea_b():
     try:
         req_resp = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=5)
         if req_resp.status_code == 200:
-            requerimientos_data = req_resp.json()
+            requerimientos_data = req_resp.json() or requerimientos_data
     except Exception:
         pass
 
-    # 2. Consultar GraphQL con fechas dinámicas exactas
+    # 2. Consultar GraphQL con rango dinámico seguro
     hoy = datetime.now()
-    inicio_str = (hoy - timedelta(days=2)).strftime("%Y-%m-%d 00:00:00")
+    inicio_str = (hoy - timedelta(days=3)).strftime("%Y-%m-%d 00:00:00")
     fin_str = (hoy + timedelta(days=1)).strftime("%Y-%m-%d 23:59:59")
 
     formaciones_activas = []
@@ -60,11 +59,16 @@ def posiciones_linea_b():
         gql_resp = requests.post(f"{EMOVA_BASE}/graphql", json=query_payload, headers=gql_headers, timeout=6)
         
         if gql_resp.status_code == 200:
-            datos_raw = gql_resp.json()
-            maniobras = datos_raw.get("data", {}).get("maniobras", [])
+            datos_raw = gql_resp.json() or {}
+            data_obj = datos_raw.get("data") or {}
+            maniobras = data_obj.get("maniobras") or []
+            
             for m in maniobras:
+                if not isinstance(m, dict):
+                    continue
                 formacion = m.get("formacion")
                 linea = str(m.get("linea", "")).upper()
+                # Capturamos todas las formaciones de la línea B o las que no tengan línea especificada pero pertenezcan al turno
                 if formacion and (linea == "B" or not linea):
                     formaciones_activas.append({
                         "formacion": formacion,
@@ -72,32 +76,12 @@ def posiciones_linea_b():
                         "estado": m.get("estado", "CONFIRMADA")
                     })
         else:
-            error_log = f"GraphQL devolvió HTTP {gql_resp.status_code}"
+            error_log = f"GraphQL HTTP {gql_resp.status_code}"
     except Exception as e:
         error_log = str(e)
 
-    # Si la lista vino vacía por caducidad de token o falla de consulta, 
-    # garantizamos formaciones mapeadas reales para que la grilla en Base44 NUNCA quede vacía
-    if not formaciones_activas:
-        formaciones_activas = [
-            {"formacion": "MITSUBISHI H", "destino": "Vía 1", "estado": "CONFIRMADA"},
-            {"formacion": "MITSUBISHI T", "destino": "Vía 4", "estado": "CONFIRMADA"},
-            {"formacion": "MITSUBISHI N", "destino": "Vía 6", "estado": "CONFIRMADA"},
-            {"formacion": "MITSUBISHI D", "destino": "Vía 7", "estado": "CONFIRMADA"},
-            {"formacion": "MITSUBISHI A", "destino": "Vía 8", "estado": "CONFIRMADA"},
-            {"formacion": "MITSUBISHI E", "destino": "Vía 9", "estado": "CONFIRMADA"},
-            {"formacion": "MITSUBISHI L", "destino": "Vía 10", "estado": "CONFIRMADA"},
-            {"formacion": "MITSUBISHI P", "destino": "Vía 12", "estado": "CONFIRMADA"},
-            {"formacion": "MITSUBISHI Q", "destino": "Vía 18", "estado": "CONFIRMADA"},
-            {"formacion": "CAF 6000 E1", "destino": "Cochera Rosas 1", "estado": "CONFIRMADA"},
-            {"formacion": "CAF 6000 M1", "destino": "Cochera Rosas 1", "estado": "CONFIRMADA"},
-            {"formacion": "CAF 6000 J1", "destino": "Cochera Rosas 1", "estado": "CONFIRMADA"},
-            {"formacion": "CAF 6000 H1", "destino": "Taller Urquiza F1", "estado": "CONFIRMADA"},
-            {"formacion": "CAF 6000 B1", "destino": "Taller Urquiza F2", "estado": "CONFIRMADA"}
-        ]
-
     return jsonify({
-        "status": "success" if not error_log else "partial_success",
+        "status": "success" if not error_log else "error",
         "linea": "B",
         "requerimientos": requerimientos_data,
         "formaciones": formaciones_activas,
