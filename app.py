@@ -39,7 +39,7 @@ def posiciones_linea_b():
     except Exception:
         pass
 
-    # 2. Consultar GraphQL de maniobras
+    # 2. Consultar GraphQL de maniobras con rango dinámico amplio
     hoy = datetime.now()
     inicio_str = (hoy - timedelta(days=5)).strftime("%Y-%m-%d 00:00:00")
     fin_str = (hoy + timedelta(days=1)).strftime("%Y-%m-%d 23:59:59")
@@ -66,20 +66,11 @@ def posiciones_linea_b():
                 if m.get("linea") == "B" and m.get("formacion"):
                     formaciones_activas.append({
                         "formacion": m.get("formacion"),
-                        "destino": m.get("destino", "Vía Principal"),
+                        "destino": m.get("destino", ""),
                         "estado": m.get("estado", "CONFIRMADA")
                     })
     except Exception:
         pass
-
-    # Fallback de seguridad: Si la lista externa viene vacía, inyectamos datos operacionales de muestra para que la grilla no quede vacía
-    if not formaciones_activas:
-        formaciones_activas = [
-            {"formacion": "CAF 6000 B1", "destino": "En Servicio - Vía 8", "estado": "CONFIRMADA"},
-            {"formacion": "CAF 6000 B2", "destino": "En Servicio - Vía 13", "estado": "CONFIRMADA"},
-            {"formacion": "MITSUBISHI I", "destino": "Cochera Rosas - Vía 1", "estado": "CONFIRMADA"},
-            {"formacion": "MITSUBISHI II", "destino": "Taller Urquiza - Fosa 1", "estado": "CONFIRMADA"}
-        ]
 
     return jsonify({
         "status": "success",
