@@ -12,10 +12,7 @@ AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.
 
 @app.route('/')
 def home():
-    return jsonify({
-        "status": "ok",
-        "message": "API Proxy Chapero Línea B activa 🚆"
-    })
+    return jsonify({"status": "ok", "message": "API Proxy Activa 🚆"})
 
 @app.route('/api/posiciones-linea-b', methods=['GET'])
 def posiciones_linea_b():
@@ -26,22 +23,23 @@ def posiciones_linea_b():
         "Content-Type": "application/json"
     }
 
-    # 1. Requerimientos del día
-    requerimientos_data = {"servicio": 10, "requeridos": 9, "disponibles": 18}
+    # 1. Requerimientos
+    req_data = {}
     try:
-        req_resp = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=5)
-        if req_resp.status_code == 200:
-            requerimientos_data = req_resp.json() or requerimientos_data
+        r = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=5)
+        if r.status_code == 200:
+            req_data = r.json()
     except Exception:
         pass
 
-    # 2. Consultar GraphQL con rango dinámico seguro
+    # 2. GraphQL con un rango brutal (30 días atrás y adelante) para asegurar captura
     hoy = datetime.now()
-    inicio_str = (hoy - timedelta(days=3)).strftime("%Y-%m-%d 00:00:00")
-    fin_str = (hoy + timedelta(days=1)).strftime("%Y-%m-%d 23:59:59")
+    inicio_str = (hoy - timedelta(days=30)).strftime("%Y-%m-%d 00:00:00")
+    fin_str = (hoy + timedelta(days=30)).strftime("%Y-%m-%d 23:59:59")
 
-    formaciones_activas = []
-    error_log = None
+    raw_response = None
+    formaciones_encontradas = []
+    gql_status = None
 
     try:
         gql_headers = {
@@ -56,36 +54,34 @@ def posiciones_linea_b():
             "extensions": {"clientLibrary": {"name": "@apollo/client", "version": "4.2.9"}},
             "query": "query Maniobras($filter: ManiobrasFilterInput) {\n  maniobras(filter: $filter) {\n    idManiobra\n    linea\n    formacion\n    destino\n    estado\n    __typename\n  }\n}"
         }
-        gql_resp = requests.post(f"{EMOVA_BASE}/graphql", json=query_payload, headers=gql_headers, timeout=6)
+        resp = requests.post(f"{EMOVA_BASE}/graphql", json=query_payload, headers=gql_headers, timeout=6)
+        gql_status = resp.status_code
         
-        if gql_resp.status_code == 200:
-            datos_raw = gql_resp.json() or {}
-            data_obj = datos_raw.get("data") or {}
-            maniobras = data_obj.get("maniobras") or []
+        if resp.status_code == 200:
+            raw_json = resp.json() or {}
+            raw_response = raw_json
+            maniobras = (raw_json.get("data") or {}).get("maniobras") or []
             
+            # REGLA SUPER PERMISIVA: Agregamos todo lo que venga sin filtrar de más
             for m in maniobras:
-                if not isinstance(m, dict):
-                    continue
-                formacion = m.get("formacion")
-                linea = str(m.get("linea", "")).upper()
-                # Capturamos todas las formaciones de la línea B o las que no tengan línea especificada pero pertenezcan al turno
-                if formacion and (linea == "B" or not linea):
-                    formaciones_activas.append({
-                        "formacion": formacion,
-                        "destino": m.get("destino", ""),
-                        "estado": m.get("estado", "CONFIRMADA")
+                if isinstance(m, dict):
+                    formaciones_encontradas.append({
+                        "formacion": m.get("formacion", "SIN TREN"),
+                        "destino": m.get("destino", "SIN DESTINO"),
+                        "estado": m.get("estado", "CONFIRMADA"),
+                        "linea": m.get("linea", "B")
                     })
         else:
-            error_log = f"GraphQL HTTP {gql_resp.status_code}"
+            raw_response = resp.text
     except Exception as e:
-        error_log = str(e)
+        raw_response = str(e)
 
     return jsonify({
-        "status": "success" if not error_log else "error",
-        "linea": "B",
-        "requerimientos": requerimientos_data,
-        "formaciones": formaciones_activas,
-        "error_detalle": error_log
+        "status": "success",
+        "requerimientos": req_data,
+        "formaciones": formaciones_encontradas,
+        "debug_status": gql_status,
+        "debug_raw": raw_response
     })
 
 if __name__ == '__main__':
