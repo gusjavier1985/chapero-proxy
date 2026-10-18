@@ -8,6 +8,7 @@ app = Flask(__name__)
 CORS(app)
 
 EMOVA_BASE = "https://chapero.emova.com.ar"
+# Recomendación: idealmente usar os.environ.get("AUTH_TOKEN") si configurás la variable de entorno en Render
 AUTH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MzEzLCJ1c2VybmFtZSI6Im1tZW50YSIsImxpbmVhcyI6IkIiLCJhcmVhIjoiVHJhZmljbyIsInBlcm1pc29zIjpbInRyYWZpY28iLCJ0YWxsZXIiLCJGVCIsIm5jIl0sImlhdCI6MTc5MjI1MTg5MSwiZXhwIjoxNzkyMjczNDkxfQ.fiFrGmDPoXuhLz_Tal-4GT0lZYNe7v4Y_o084y4rKEQ"
 
 @app.route('/')
@@ -26,27 +27,26 @@ def posiciones_linea_b():
         "Content-Type": "application/json"
     }
 
-    # 1. Requerimientos
-    requerimientos_data = {
-        "servicio": 10,
-        "requeridos": 9,
-        "disponibles": 18
-    }
+    # 1. Requerimientos del día
+    requerimientos_data = {"servicio": 10, "requeridos": 9, "disponibles": 18}
+    req_error = None
     try:
         req_resp = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=5)
         if req_resp.status_code == 200:
             requerimientos_data = req_resp.json()
-    except Exception:
-        pass
+        else:
+            req_error = f"HTTP {req_resp.status_code}"
+    except Exception as e:
+        req_error = str(e)
 
-    # 2. Obtener Maniobras de GraphQL
-    formaciones_lista = []
-    maniobras_raw = []
-    
-    # Rango amplio para asegurar capturar formaciones vigentes
+    # 2. Consultar GraphQL de maniobras
     hoy = datetime.now()
-    inicio_str = (hoy - timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")
-    fin_str = (hoy + timedelta(days=2)).strftime("%Y-%m-%d 23:59:59")
+    inicio_str = (hoy - timedelta(days=5)).strftime("%Y-%m-%d 00:00:00")
+    fin_str = (hoy + timedelta(days=1)).strftime("%Y-%m-%d 23:59:59")
+
+    formaciones_activas = []
+    graphql_error = None
+    raw_response_snippet = None
 
     try:
         gql_headers = {
@@ -62,45 +62,33 @@ def posiciones_linea_b():
             "query": "query Maniobras($filter: ManiobrasFilterInput) {\n  maniobras(filter: $filter) {\n    idManiobra\n    linea\n    formacion\n    destino\n    estado\n    __typename\n  }\n}"
         }
         gql_resp = requests.post(f"{EMOVA_BASE}/graphql", json=query_payload, headers=gql_headers, timeout=5)
+        raw_response_snippet = gql_resp.text[:300] # Para diagnóstico
+        
         if gql_resp.status_code == 200:
-            datos_json = gql_resp.json()
-            maniobras_raw = datos_json.get("data", {}).get("maniobras", [])
-            
-            # Extraer de forma directa sin filtros restrictivos
-            for m in maniobras_raw:
-                # Tomamos todas las de Línea B o las que tengan formación válida
-                linea = str(m.get("linea", "")).upper()
-                formacion = m.get("formacion")
-                destino = m.get("destino", "")
-                
-                if (linea == "B" or not linea) and formacion:
-                    formaciones_lista.append({
-                        "formacion": formacion,
-                        "destino": destino,
-                        "estado": m.get("estado", "CONFIRMADA"),
-                        "linea": "B"
+            datos_raw = gql_resp.json()
+            maniobras = datos_raw.get("data", {}).get("maniobras", [])
+            for m in maniobras:
+                if m.get("linea") == "B" and m.get("formacion"):
+                    formaciones_activas.append({
+                        "formacion": m.get("formacion"),
+                        "destino": m.get("destino", ""),
+                        "estado": m.get("estado", "CONFIRMADA")
                     })
+        else:
+            graphql_error = f"GraphQL HTTP {gql_resp.status_code}"
     except Exception as e:
-        print("Error al consultar GraphQL:", e)
-
-    # Garantía de devolución: si la extracción quedó vacía por cualquier fallo de red de Emova,
-    # armamos la lista directa desde maniobras_raw si existe
-    if not formaciones_lista and maniobras_raw:
-        for m in maniobras_raw:
-            if m.get("formacion"):
-                formaciones_lista.append({
-                    "formacion": m.get("formacion"),
-                    "destino": m.get("destino", ""),
-                    "estado": m.get("estado", "CONFIRMADA"),
-                    "linea": "B"
-                })
+        graphql_error = str(e)
 
     return jsonify({
-        "status": "success",
+        "status": "success" if not graphql_error else "error_graphql",
         "linea": "B",
         "requerimientos": requerimientos_data,
-        "formaciones": formaciones_lista,
-        "total_formaciones": len(formaciones_lista)
+        "formaciones": formaciones_activas,
+        "diagnostico": {
+            "graphql_error": graphql_error,
+            "req_error": req_error,
+            "raw_snippet": raw_response_snippet
+        }
     })
 
 if __name__ == '__main__':
