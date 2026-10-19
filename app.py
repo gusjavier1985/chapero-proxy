@@ -15,7 +15,6 @@ def home():
 
 @app.route('/api/posiciones-linea-b', methods=['GET'])
 def posiciones_linea_b():
-    # .strip() elimina automáticamente saltos de línea, espacios invisibles y comillas
     raw_token = os.environ.get("AUTH_TOKEN", "")
     auth_token = raw_token.strip().strip("'").strip('"').replace('\n', '').replace('\r', '')
 
@@ -33,12 +32,24 @@ def posiciones_linea_b():
         r = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=5)
         if r.status_code == 200:
             req_data = r.json()
-        else:
-            req_data = {"error_req": r.text, "status_code": r.status_code}
-    except Exception as e:
-        req_data = {"error_excepcion": str(e)}
+    except Exception:
+        pass
 
-    # 2. GraphQL Maniobras de la Línea B
+    # 2. Posiciones / Fichero en vivo (el que ubica los trenes en cada cochera/andén)
+    posiciones_fichero = []
+    try:
+        r_pos = requests.get(f"{EMOVA_BASE}/api/ce/posiciones?linea=B", headers=headers, timeout=5)
+        if r_pos.status_code == 200:
+            posiciones_fichero = r_pos.json()
+        else:
+            # Alternativa según versión de API Emova
+            r_fich = requests.get(f"{EMOVA_BASE}/api/ce/fichero/B", headers=headers, timeout=5)
+            if r_fich.status_code == 200:
+                posiciones_fichero = r_fich.json()
+    except Exception:
+        pass
+
+    # 3. Maniobras GraphQL (para estado de boletas/maniobras)
     hoy = datetime.now()
     inicio_str = (hoy - timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")
     fin_str = hoy.strftime("%Y-%m-%d 23:59:59")
@@ -90,6 +101,7 @@ def posiciones_linea_b():
         "status": "success",
         "token_configurado": bool(auth_token),
         "requerimientos": req_data,
+        "fichero": posiciones_fichero,
         "formaciones": formaciones_encontradas,
         "debug_status": gql_status,
         "debug_raw": raw_response
