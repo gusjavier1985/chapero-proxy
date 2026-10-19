@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 import requests
 from flask import Flask, jsonify, render_template_string
 from flask_cors import CORS
@@ -9,8 +8,7 @@ CORS(app)
 
 EMOVA_BASE = "https://chapero.emova.com.ar"
 
-HTML_TEMPLATE = """
-<!DOCTYPE html>
+HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -20,7 +18,6 @@ HTML_TEMPLATE = """
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0d131f; color: #ffffff; margin: 0; padding: 8px; font-size: 12px; }
         
-        /* HEADER SUPERIOR */
         .top-bar { display: flex; align-items: center; justify-content: space-between; background: #162032; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #233248; }
         .line-badge { background: #ef4444; color: #fff; font-weight: bold; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
         .stats-group { display: flex; gap: 8px; text-align: center; }
@@ -32,7 +29,6 @@ HTML_TEMPLATE = """
         .timer-clock { font-size: 1.1rem; }
         .timer-text { font-weight: bold; font-size: 0.85rem; color: #38bdf8; }
 
-        /* SECCIONES Y GRILLAS */
         .section-box { background: #131b29; border-radius: 8px; padding: 10px; margin-bottom: 10px; border: 1px solid #1e293b; }
         .sec-title { font-size: 0.75rem; font-weight: bold; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; text-align: center; letter-spacing: 0.5px; }
         
@@ -40,7 +36,6 @@ HTML_TEMPLATE = """
         .service-row { display: flex; align-items: center; background: #182232; border-radius: 5px; padding: 3px 6px; border: 1px solid #2a374a; }
         .itin-num { width: 24px; font-weight: bold; font-size: 0.75rem; color: #94a3b8; text-align: center; }
         
-        /* CHIPS Y ESTADOS */
         .train-chip { flex: 1; font-weight: bold; font-size: 0.75rem; padding: 5px; border-radius: 4px; text-align: center; border: 1px solid transparent; }
         .train-chip.empty { background: #182232; border: 1px dashed #2a374a; color: #475569; }
         .train-chip.green { background: #15803d; border-color: #22c55e; color: #fff; }
@@ -48,17 +43,16 @@ HTML_TEMPLATE = """
         .train-chip.maroon { background: #581c87; border-color: #7e22ce; color: #e9d5ff; }
         .train-chip.striped { background: repeating-linear-gradient(45deg, #854d0e, #854d0e 10px, #713f12 10px, #713f12 20px); border-color: #a16207; color: #fff; font-size: 0.7rem; }
 
-        .grid-custom { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
         .grid-1 { display: grid; grid-template-columns: 1fr; gap: 6px; }
         
-        .cell { background: #182232; border: 1px solid #2a374a; border-radius: 5px; padding: 6px; text-align: center; font-size: 0.75rem; font-weight: bold; color: #475569; }
+        .cell { background: #182232; border: 1px solid #2a374a; border-radius: 5px; padding: 6px; text-align: center; font-size: 0.75rem; font-weight: bold; color: #475569; min-height: 28px; }
         .track-num { font-size: 0.65rem; color: #64748b; margin-right: 4px; }
     </style>
 </head>
 <body>
 
-    <!-- TOP BAR ESTADISTICAS -->
     <div class="top-bar">
         <div class="line-badge">B</div>
         <div class="stats-group">
@@ -77,16 +71,14 @@ HTML_TEMPLATE = """
         </div>
     </div>
 
-    <!-- PROXIMO ENTRE -->
     <div class="timer-bar">
         <div class="timer-clock">⏱️</div>
         <div>
             <div style="font-size: 0.6rem; color: #94a3b8; text-transform: uppercase;">Próximo Entre</div>
-            <div class="timer-text">1h 13m</div>
+            <div class="timer-text">56m</div>
         </div>
     </div>
 
-    <!-- EN SERVICIO -->
     <div class="section-box">
         <div class="sec-title">En Servicio</div>
         <div class="grid-service">
@@ -98,7 +90,7 @@ HTML_TEMPLATE = """
             <div class="service-row"><div class="itin-num">21</div><div class="train-chip empty">-</div></div>
             <div class="service-row"><div class="itin-num">5</div><div class="train-chip green">MITSUBISHI N</div></div>
             <div class="service-row"><div class="itin-num">17</div><div class="train-chip green">MITSUBISHI Q</div></div>
-            <div class="service-row"><div class="itin-num">14</div><div class="train-chip green">CAF 6000 I1</div></div>
+            <div class="service-row"><div class="itin-num">14</div><div class="train-chip green">CAF 6000 N1</div></div>
             <div class="service-row"><div class="itin-num">12</div><div class="train-chip green">CAF 6000 K1</div></div>
             <div class="service-row"><div class="itin-num">22</div><div class="train-chip empty">-</div></div>
             <div class="service-row"><div class="itin-num">2</div><div class="train-chip green">MITSUBISHI I</div></div>
@@ -111,85 +103,4 @@ HTML_TEMPLATE = """
             <div class="service-row"><div class="itin-num">15</div><div class="train-chip green">MITSUBISHI D</div></div>
             <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
             <div class="service-row"><div class="itin-num">8</div><div class="train-chip green">MITSUBISHI T</div></div>
-            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
-            <div class="service-row"><div class="itin-num">9</div><div class="train-chip green">CAF 6000 M1</div></div>
-            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
-            <div class="service-row"><div class="itin-num">20</div><div class="train-chip green">CAF 6000 J1</div></div>
-            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
-            <div class="service-row"><div class="itin-num">16</div><div class="train-chip green">CAF 6000 G1</div></div>
-            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
-            <div class="service-row"><div class="itin-num">10</div><div class="train-chip green">MITSUBISHI M</div></div>
-            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
-        </div>
-    </div>
-
-    <!-- ANDEN ROSAS -->
-    <div class="section-box">
-        <div class="sec-title">Andén Rosas</div>
-        <div class="grid-2">
-            <div class="cell"><span class="track-num">S</span></div>
-            <div class="cell"><span class="track-num">N</span></div>
-        </div>
-    </div>
-
-    <!-- COCHERA ROSAS -->
-    <div class="section-box">
-        <div class="sec-title">Cochera Rosas</div>
-        <div class="grid-3">
-            <div class="cell"><span class="track-num">1</span></div>
-            <div class="cell"><span class="track-num">1</span></div>
-            <div class="cell"><span class="track-num">1</span></div>
-            <div class="cell"><span class="track-num">3</span></div>
-            <div class="cell"><span class="track-num">3</span></div>
-            <div class="cell"><span class="track-num">3</span></div>
-            <div class="cell train-chip green" style="padding:6px;"><span class="track-num">4</span>CAF 6000 B1</div>
-            <div class="cell"><span class="track-num">2</span></div>
-            <div class="cell"><span class="track-num">2</span></div>
-        </div>
-    </div>
-
-    <!-- TALLER URQUIZA -->
-    <div class="section-box">
-        <div class="sec-title">Taller Urquiza</div>
-        <div class="grid-2">
-            <div class="train-chip maroon"><span class="track-num">F1</span>CAF 6000 F1</div>
-            <div class="train-chip maroon"><span class="track-num">F2</span>CAF 6000 H1</div>
-        </div>
-    </div>
-
-    <!-- LOS INCAS -->
-    <div class="section-box">
-        <div class="sec-title">Los Incas</div>
-        <div class="grid-2">
-            <div class="cell"><span class="track-num">S</span></div>
-            <div class="cell"><span class="track-num">N</span></div>
-        </div>
-    </div>
-
-    <!-- RUBEN DARIO -->
-    <div class="section-box">
-        <div class="sec-title">Rubén Darío</div>
-        <div class="grid-1"><div class="cell">-</div></div>
-    </div>
-
-    <!-- ALEM -->
-    <div class="section-box">
-        <div class="sec-title">Alem</div>
-        <div class="grid-2">
-            <div class="cell"><span class="track-num">S</span></div>
-            <div class="cell"><span class="track-num">N</span></div>
-        </div>
-    </div>
-
-    <!-- ECHEVERRIA -->
-    <div class="section-box">
-        <div class="sec-title">Echeverría</div>
-        <div class="grid-2">
-            <div class="cell"><span class="track-num">N</span></div>
-            <div class="cell"><span class="track-num">S</span></div>
-        </div>
-    </div>
-
-    <!-- TALLER RANCAGUA -->
-    <div class="section-box">
-        <div class="sec-title
+            <div class
