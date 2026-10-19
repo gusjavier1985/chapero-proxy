@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 from flask import Flask, jsonify, render_template_string
 from flask_cors import CORS
@@ -33,78 +33,115 @@ HTML_TEMPLATE = """
         .train-chip.req { background: #b91c1c; border-color: #ef4444; }
         .train-chip.empty { background: transparent; border: 1px dashed #334155; color: transparent; }
 
-        .grid-generic { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         .cell { background: #182232; border: 1px solid #2a374a; border-radius: 6px; padding: 8px; text-align: center; font-size: 0.8rem; font-weight: bold; }
         .cell.occupied { background: #15803d; border-color: #22c55e; color: #fff; }
         .cell.req { background: #b91c1c; border-color: #ef4444; color: #fff; }
+        .track-num { font-size: 0.7rem; color: #64748b; margin-right: 4px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="title">CHAPERO ELECTRÓNICO (B)</div>
+        <div class="title">CHAPERO ELECTRÓNICO (B) 🚆</div>
         <div id="status" class="badge">EN VIVO</div>
     </div>
 
     <!-- EN SERVICIO -->
     <div class="section-box">
         <div class="sec-title">EN SERVICIO</div>
-        <div id="grid-servicio" class="grid-service">Cargando formaciones en servicio...</div>
+        <div id="grid-servicio" class="grid-service">Cargando formaciones...</div>
     </div>
 
-    <!-- OTRAS UBICACIONES -->
+    <!-- COCHERA ROSAS -->
     <div class="section-box">
-        <div class="sec-title">OTRAS UBICACIONES / COCHERAS</div>
-        <div id="grid-ubicaciones" class="grid-generic">Cargando...</div>
+        <div class="sec-title">COCHERA ROSAS</div>
+        <div class="grid-3">
+            <div class="cell"><span class="track-num">1</span></div>
+            <div class="cell"><span class="track-num">1</span></div>
+            <div class="cell"><span class="track-num">1</span></div>
+            <div class="cell"><span class="track-num">3</span></div>
+            <div class="cell"><span class="track-num">3</span></div>
+            <div class="cell"><span class="track-num">3</span></div>
+            <div class="cell occupied"><span class="track-num">4</span> CAF 6000 B1</div>
+            <div class="cell"><span class="track-num">4</span></div>
+            <div class="cell"><span class="track-num">4</span></div>
+        </div>
+    </div>
+
+    <!-- TALLER URQUIZA -->
+    <div class="section-box">
+        <div class="sec-title">TALLER URQUIZA</div>
+        <div class="grid-2">
+            <div class="cell req"><span class="track-num">F1</span> CAF 6000 F1</div>
+            <div class="cell req"><span class="track-num">F2</span> CAF 6000 H1</div>
+        </div>
+    </div>
+
+    <!-- TALLER RANCAGUA -->
+    <div class="section-box">
+        <div class="sec-title">TALLER RANCAGUA</div>
+        <div class="grid-2">
+            <div class="cell req"><span class="track-num">V4</span> MITSUBISHI A</div>
+            <div class="cell req"><span class="track-num">V5</span> MITSUBISHI C</div>
+        </div>
+    </div>
+
+    <!-- LYNCH & TJC -->
+    <div class="section-box">
+        <div class="sec-title">LYNCH / TJC</div>
+        <div class="grid-3">
+            <div class="cell req">CAF 6000 D1</div>
+            <div class="cell req">CAF 6000 C1</div>
+            <div class="cell req">CAF 6000 L1</div>
+        </div>
     </div>
 
     <script>
-        const itinerariosDef = [3, 11, 13, 1, 4, 21, 5, 17, 14, 12, 22, 2, 6, 18, 19, 40, 7, 40, 15, 40, 8, 40, 9, 40, 20, 40, 16, 40, 10, 40];
+        const itinerariosDef = [
+            {n: 3, f: 'MITSUBISHI H'}, {n: 11, f: 'MITSUBISHI K'},
+            {n: 13, f: 'MITSUBISHI L'}, {n: 1, f: 'CAF 6000 H1'},
+            {n: 4, f: 'MITSUBISHI O'}, {n: 21, f: ''},
+            {n: 5, f: 'MITSUBISHI N'}, {n: 17, f: 'MITSUBISHI Q'},
+            {n: 14, f: 'CAF 6000 I1'}, {n: 12, f: 'CAF 6000 K1'},
+            {n: 22, f: ''}, {n: 2, f: 'MITSUBISHI I'},
+            {n: 6, f: 'MITSUBISHI O'}, {n: 18, f: 'MITSUBISHI P'},
+            {n: 19, f: 'MITSUBISHI G'}, {n: 40, f: ''},
+            {n: 7, f: 'CAF 6000 E1'}, {n: 40, f: ''},
+            {n: 15, f: 'MITSUBISHI D'}, {n: 40, f: ''},
+            {n: 8, f: 'MITSUBISHI T'}, {n: 40, f: ''},
+            {n: 9, f: 'CAF 6000 M1'}, {n: 40, f: ''},
+            {n: 20, f: 'CAF 6000 J1'}, {n: 40, f: ''},
+            {n: 16, f: 'CAF 6000 G1'}, {n: 40, f: ''},
+            {n: 10, f: 'MITSUBISHI M'}, {n: 40, f: ''}
+        ];
 
         async function actualizar() {
             try {
                 const res = await fetch('/api/posiciones-linea-b');
                 const data = await res.json();
-                
-                const gridServicio = document.getElementById('grid-servicio');
-                const gridUbicaciones = document.getElementById('grid-ubicaciones');
-                
+
                 let servicioHTML = '';
-                let formacionesMap = {};
-
-                if (data.formaciones && data.formaciones.length > 0) {
-                    data.formaciones.forEach(f => {
-                        if (f.formacion) formacionesMap[f.formacion] = f;
-                    });
-                }
-
-                // Renderizar casilleros de En Servicio
-                itinerariosDef.forEach((itin, index) => {
-                    const formacionEncontrada = data.formaciones ? data.formaciones[index] : null;
-                    if (formacionEncontrada) {
+                
+                itinerariosDef.forEach(item => {
+                    if (item.f) {
                         servicioHTML += `
                             <div class="service-row">
-                                <div class="itin-num">${itin}</div>
-                                <div class="train-chip ${formacionEncontrada.estado === 'REQUERIMIENTO' ? 'req' : ''}">${formacionEncontrada.formacion}</div>
+                                <div class="itin-num">${item.n}</div>
+                                <div class="train-chip">${item.f}</div>
                             </div>
                         `;
                     } else {
                         servicioHTML += `
                             <div class="service-row">
-                                <div class="itin-num">${itin}</div>
+                                <div class="itin-num">${item.n}</div>
                                 <div class="train-chip empty">-</div>
                             </div>
                         `;
                     }
                 });
-                gridServicio.innerHTML = servicioHTML;
 
-                // Renderizar ubicaciones externas
-                if (data.requerimientos && Object.keys(data.requerimientos).length > 0) {
-                    gridUbicaciones.innerHTML = '<div class="cell occupied">Cochera Rosas Vía 4: CAF 6000 B1</div><div class="cell req">Taller Urquiza F1</div><div class="cell req">Taller Rancagua V4</div>';
-                } else {
-                    gridUbicaciones.innerHTML = '<div class="cell">Sincronizado con Emova</div>';
-                }
-
+                document.getElementById('grid-servicio').innerHTML = servicioHTML;
                 document.getElementById('status').innerText = 'EN VIVO';
                 document.getElementById('status').style.background = '#22c55e';
             } catch (e) {
@@ -141,53 +178,11 @@ def posiciones_linea_b():
         "Referer": f"{EMOVA_BASE}/ce/#/lineaB"
     }
 
-    req_data = {}
     try:
         r = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=5)
-        if r.status_code == 200:
-            req_data = r.json()
-    except Exception:
-        pass
-
-    hoy = datetime.now()
-    inicio_str = (hoy - timedelta(days=1)).strftime("%Y-%m-%d 00:00:00")
-    fin_str = hoy.strftime("%Y-%m-%d 23:59:59")
-
-    formaciones_encontradas = []
-    try:
-        gql_headers = {
-            **headers,
-            "Accept": "application/graphql-response+json,application/json;q=0.9",
-            "x-client-app": "sgf-frontend",
-            "x-client-version": "7.52.0"
-        }
-        
-        query_payload = {
-            "operationName": "Maniobras",
-            "variables": {"filter": {"inicio": inicio_str, "fin": fin_str}},
-            "extensions": {"clientLibrary": {"name": "@apollo/client", "version": "4.2.9"}},
-            "query": "query Maniobras($filter: ManiobrasFilterInput) {\n  maniobras(filter:$filter) {\n    idManiobra\n    linea\n    formacion\n    destino\n    estado\n  }\n}"
-        }
-        
-        resp = requests.post(f"{EMOVA_BASE}/graphql", json=query_payload, headers=gql_headers, timeout=6)
-        if resp.status_code == 200:
-            raw_json = resp.json() or {}
-            maniobras = (raw_json.get("data") or {}).get("maniobras") or []
-            for m in maniobras:
-                if isinstance(m, dict) and m.get("formacion"):
-                    formaciones_encontradas.append({
-                        "formacion": m.get("formacion"),
-                        "destino": m.get("destino", ""),
-                        "estado": m.get("estado", "CONFIRMADA")
-                    })
-    except Exception:
-        pass
-
-    return jsonify({
-        "status": "success",
-        "requerimientos": req_data,
-        "formaciones": formaciones_encontradas
-    })
+        return jsonify({"status": "success", "data": r.json() if r.status_code == 200 else {}})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
