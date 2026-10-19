@@ -40,10 +40,12 @@ HTML_TABLERO = """
         .section-header {
             font-size: 0.85rem;
             font-weight: bold;
-            color: #94a3b8;
+            color: #38bdf8;
             text-transform: uppercase;
             margin: 16px 0 8px 4px;
             letter-spacing: 0.5px;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 4px;
         }
         .grid {
             display: grid;
@@ -59,10 +61,10 @@ HTML_TABLERO = """
         }
         .card.active {
             border-color: #22c55e;
-            background: rgba(34, 197, 94, 0.1);
+            background: rgba(34, 197, 94, 0.15);
         }
-        .train-id { font-size: 1.1rem; font-weight: bold; color: #38bdf8; }
-        .train-dest { font-size: 0.75rem; color: #94a3b8; margin-top: 4px; }
+        .train-id { font-size: 1rem; font-weight: bold; color: #22c55e; }
+        .train-location { font-size: 0.75rem; color: #cbd5e1; margin-top: 4px; font-weight: 500; }
         .empty { color: #64748b; font-size: 0.85rem; padding: 12px; text-align: center; grid-column: 1 / -1; }
     </style>
 </head>
@@ -72,9 +74,9 @@ HTML_TABLERO = """
         <div id="badge" class="badge">EN VIVO</div>
     </div>
 
-    <div class="section-header">Formaciones en Servicio / Maniobras</div>
+    <div class="section-header">Posiciones y Formaciones</div>
     <div id="grid" class="grid">
-        <div class="empty">Cargando formaciones...</div>
+        <div class="empty">Cargando formaciones de la Línea B...</div>
     </div>
 
     <script>
@@ -84,16 +86,28 @@ HTML_TABLERO = """
                 const data = await res.json();
                 const grid = document.getElementById('grid');
                 
+                let htmlContent = '';
+
+                // Si hay formaciones o lista de requerimientos/ubicaciones
                 if (data.formaciones && data.formaciones.length > 0) {
-                    grid.innerHTML = data.formaciones.map(f => `
+                    htmlContent = data.formaciones.map(f => `
                         <div class="card active">
                             <div class="train-id">${f.formacion}</div>
-                            <div class="train-dest">${f.destino || 'LÍNEA B'}</div>
+                            <div class="train-location">${f.destino || f.ubicacion || 'LÍNEA B'}</div>
+                        </div>
+                    `).join('');
+                } else if (data.raw_lista && data.raw_lista.length > 0) {
+                    htmlContent = data.raw_lista.map(f => `
+                        <div class="card active">
+                            <div class="train-id">${f.formacion || f.nombre || f.id}</div>
+                            <div class="train-location">${f.ubicacion || f.destino || 'LÍNEA B'}</div>
                         </div>
                     `).join('');
                 } else {
-                    grid.innerHTML = '<div class="empty">Sin formaciones registradas en este momento</div>';
+                    htmlContent = '<div class="empty">Actualizando posiciones con Emova...</div>';
                 }
+
+                grid.innerHTML = htmlContent;
             } catch (e) {
                 document.getElementById('badge').innerText = 'ERROR';
                 document.getElementById('badge').style.background = '#ef4444';
@@ -101,7 +115,7 @@ HTML_TABLERO = """
         }
 
         cargarTablero();
-        setInterval(cargarTablero, 5000); // Sincronización automática cada 5 segundos
+        setInterval(cargarTablero, 5000);
     </script>
 </body>
 </html>
@@ -128,19 +142,10 @@ def posiciones_linea_b():
         "Referer": f"{EMOVA_BASE}/ce/#/lineaB"
     }
 
-    req_data = {}
-    try:
-        r = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=5)
-        if r.status_code == 200:
-            req_data = r.json()
-    except Exception:
-        pass
-
-    hoy = datetime.now()
-    inicio_str = (hoy - timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")
-    fin_str = hoy.strftime("%Y-%m-%d 23:59:59")
-
     formaciones_encontradas = []
+    raw_lista = []
+
+    # Búsqueda ampliada en GraphQL sin filtro restrictivo de fechas
     try:
         gql_headers = {
             **headers,
@@ -151,7 +156,7 @@ def posiciones_linea_b():
         
         query_payload = {
             "operationName": "Maniobras",
-            "variables": {"filter": {"inicio": inicio_str, "fin": fin_str}},
+            "variables": {"filter": {}},
             "extensions": {"clientLibrary": {"name": "@apollo/client", "version": "4.2.9"}},
             "query": "query Maniobras($filter: ManiobrasFilterInput) {\n  maniobras(filter:$filter) {\n    idManiobra\n    linea\n    formacion\n    destino\n    estado\n  }\n}"
         }
@@ -172,8 +177,8 @@ def posiciones_linea_b():
 
     return jsonify({
         "status": "success",
-        "requerimientos": req_data,
-        "formaciones": formaciones_encontradas
+        "formaciones": formaciones_encontradas,
+        "raw_lista": raw_lista
     })
 
 if __name__ == '__main__':
