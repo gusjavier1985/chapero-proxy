@@ -1,6 +1,6 @@
 import os
 import requests
-from flask import Flask, jsonify, render_template_string
+from flask import Flask, jsonify, Response
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -103,4 +103,135 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <div class="service-row"><div class="itin-num">15</div><div class="train-chip green">MITSUBISHI D</div></div>
             <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
             <div class="service-row"><div class="itin-num">8</div><div class="train-chip green">MITSUBISHI T</div></div>
-            <div class
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">9</div><div class="train-chip green">CAF 6000 M1</div></div>
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">20</div><div class="train-chip green">CAF 6000 J1</div></div>
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">16</div><div class="train-chip green">CAF 6000 G1</div></div>
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">10</div><div class="train-chip green">MITSUBISHI M</div></div>
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="sec-title">Andén Rosas</div>
+        <div class="grid-2">
+            <div class="cell"><span class="track-num">S</span></div>
+            <div class="cell"><span class="track-num">N</span></div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="sec-title">Cochera Rosas</div>
+        <div class="grid-3">
+            <div class="cell"><span class="track-num">1</span></div>
+            <div class="cell"><span class="track-num">1</span></div>
+            <div class="cell"><span class="track-num">1</span></div>
+            <div class="cell"><span class="track-num">3</span></div>
+            <div class="cell"><span class="track-num">3</span></div>
+            <div class="cell"><span class="track-num">3</span></div>
+            <div class="cell train-chip green" style="padding:6px;"><span class="track-num">4</span>CAF 6000 B1</div>
+            <div class="cell"><span class="track-num">2</span></div>
+            <div class="cell"><span class="track-num">2</span></div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="sec-title">Taller Urquiza</div>
+        <div class="grid-2">
+            <div class="train-chip maroon"><span class="track-num">F1</span>CAF 6000 F1</div>
+            <div class="train-chip maroon"><span class="track-num">F2</span>CAF 6000 H1</div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="sec-title">Los Incas</div>
+        <div class="grid-2">
+            <div class="cell"><span class="track-num">S</span></div>
+            <div class="cell"><span class="track-num">N</span></div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="sec-title">Rubén Darío</div>
+        <div class="grid-1"><div class="cell"></div></div>
+    </div>
+
+    <div class="section-box">
+        <div class="sec-title">Alem</div>
+        <div class="grid-2">
+            <div class="cell"><span class="track-num">S</span></div>
+            <div class="cell"><span class="track-num">N</span></div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="sec-title">Echeverría</div>
+        <div class="grid-2">
+            <div class="cell"><span class="track-num">N</span></div>
+            <div class="cell"><span class="track-num">S</span></div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="sec-title">Taller Rancagua</div>
+        <div class="grid-2">
+            <div class="cell"><span class="track-num">2</span></div>
+            <div class="cell"><span class="track-num">3</span></div>
+            <div class="train-chip red"><span class="track-num">4</span>MITSUBISHI A</div>
+            <div class="train-chip red"><span class="track-num">5</span>MITSUBISHI C</div>
+            <div class="train-chip striped"><span class="track-num">6</span>500-916-017</div>
+            <div class="cell"><span class="track-num">7</span></div>
+            <div class="cell"><span class="track-num">8</span></div>
+            <div class="cell"><span class="track-num">9</span></div>
+            <div class="cell"><span class="track-num">10</span></div>
+            <div class="cell"><span class="track-num">D</span></div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="sec-title">Lynch</div>
+        <div class="grid-3">
+            <div class="train-chip maroon">CAF 6000 D1</div>
+            <div class="cell"></div>
+            <div class="cell"></div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="sec-title">Polvorín</div>
+        <div class="grid-3">
+            <div class="train-chip striped">OCUPADA</div>
+            <div class="cell"></div>
+            <div class="cell"></div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="sec-title">TJC</div>
+        <div class="grid-3">
+            <div class="cell"></div>
+            <div class="train-chip maroon">CAF 6000 C1</div>
+            <div class="train-chip maroon">CAF 6000 L1</div>
+        </div>
+    </div>
+
+</body>
+</html>"""
+
+@app.route('/')
+def home():
+    return jsonify({"status": "ok", "message": "API Proxy Activa 🚆"})
+
+@app.route('/tablero')
+def tablero_view():
+    return Response(HTML_TEMPLATE, content_type='text/html')
+
+@app.route('/api/posiciones-linea-b', methods=['GET'])
+def posiciones_linea_b():
+    return jsonify({"status": "success"})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
