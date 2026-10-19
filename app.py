@@ -8,7 +8,7 @@ app = Flask(__name__)
 CORS(app)
 
 EMOVA_BASE = "https://chapero.emova.com.ar"
-# Token activo recién capturado desde la sesión de Chapero
+# Token activo recién capturado
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MzEzLCJ1c2VybmFtZSI6Im1tZW50YSIsImxpbmVhcyI6IkIiLCJhcmVhIjoiVHJhZmljbyIsInBlcm1pc29zIjpbInRyYWZpY28iLCJ0YWxsZXIiLCJGVCIsIm5jIl0sImlhdCI6MTc5MjM0Nzg4OCwiZXhwIjoxNzkyMzY5NDg4fQ.LSOoXw-tEJAxGj_Zi0RegQ07KH7y-zK12DlMtoPkSVk")
 
 @app.route('/')
@@ -21,7 +21,8 @@ def posiciones_linea_b():
         "x-auth-token": AUTH_TOKEN,
         "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
         "Origin": EMOVA_BASE,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Referer": f"{EMOVA_BASE}/ce/#/lineaB"
     }
 
     # 1. Requerimientos
@@ -33,10 +34,10 @@ def posiciones_linea_b():
     except Exception:
         pass
 
-    # 2. GraphQL Maniobras con Token Activo
+    # 2. GraphQL con la consulta exacta capturada del cURL oficial
     hoy = datetime.now()
-    inicio_str = (hoy - timedelta(days=5)).strftime("%Y-%m-%d 00:00:00")
-    fin_str = (hoy + timedelta(days=2)).strftime("%Y-%m-%d 23:59:59")
+    inicio_str = (hoy - timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")
+    fin_str = hoy.strftime("%Y-%m-%d 23:59:59")
 
     raw_response = None
     formaciones_encontradas = []
@@ -49,12 +50,25 @@ def posiciones_linea_b():
             "x-client-app": "sgf-frontend",
             "x-client-version": "7.52.0"
         }
+        
+        # Query idéntica a la capturada con Eruda
         query_payload = {
             "operationName": "Maniobras",
-            "variables": {"filter": {"inicio": inicio_str, "fin": fin_str}},
-            "extensions": {"clientLibrary": {"name": "@apollo/client", "version": "4.2.9"}},
-            "query": "query Maniobras($filter: ManiobrasFilterInput) {\n  maniobras(filter: $filter) {\n    idManiobra\n    linea\n    formacion\n    destino\n    estado\n    __typename\n  }\n}"
+            "variables": {
+                "filter": {
+                    "inicio": inicio_str,
+                    "fin": fin_str
+                }
+            },
+            "extensions": {
+                "clientLibrary": {
+                    "name": "@apollo/client",
+                    "version": "4.2.9"
+                }
+            },
+            "query": "query Maniobras($filter: ManiobrasFilterInput) {\n  maniobras(filter: $filter) {\n    idManiobra\n    linea\n    formacion\n    destino\n    boleta\n    fechaApertura\n    fechaCierre\n    usuarioApertura\n    usuarioCierre\n    comentarioApertura\n    comentarioCierre\n    estado\n    __typename\n  }\n}"
         }
+        
         resp = requests.post(f"{EMOVA_BASE}/graphql", json=query_payload, headers=gql_headers, timeout=6)
         gql_status = resp.status_code
         
@@ -65,12 +79,17 @@ def posiciones_linea_b():
             
             for m in maniobras:
                 if isinstance(m, dict):
-                    formaciones_encontradas.append({
-                        "formacion": m.get("formacion", ""),
-                        "destino": m.get("destino", ""),
-                        "estado": m.get("estado", "CONFIRMADA"),
-                        "linea": m.get("linea", "B")
-                    })
+                    formacion = m.get("formacion")
+                    linea = str(m.get("linea", "")).upper()
+                    if formacion and (linea == "B" or not linea):
+                        formaciones_encontradas.append({
+                            "idManiobra": m.get("idManiobra"),
+                            "formacion": formacion,
+                            "destino": m.get("destino", ""),
+                            "estado": m.get("estado", "CONFIRMADA"),
+                            "boleta": m.get("boleta"),
+                            "fechaApertura": m.get("fechaApertura")
+                        })
         else:
             raw_response = resp.text
     except Exception as e:
