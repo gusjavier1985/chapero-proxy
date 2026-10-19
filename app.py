@@ -35,21 +35,32 @@ def posiciones_linea_b():
     except Exception:
         pass
 
-    # 2. Posiciones / Fichero en vivo (el que ubica los trenes en cada cochera/andén)
+    # 2. Búsqueda exhaustiva del Fichero/Posiciones de la Línea B
     posiciones_fichero = []
-    try:
-        r_pos = requests.get(f"{EMOVA_BASE}/api/ce/posiciones?linea=B", headers=headers, timeout=5)
-        if r_pos.status_code == 200:
-            posiciones_fichero = r_pos.json()
-        else:
-            # Alternativa según versión de API Emova
-            r_fich = requests.get(f"{EMOVA_BASE}/api/ce/fichero/B", headers=headers, timeout=5)
-            if r_fich.status_code == 200:
-                posiciones_fichero = r_fich.json()
-    except Exception:
-        pass
+    rutas_fichero = [
+        f"{EMOVA_BASE}/api/ce/fichero?linea=B",
+        f"{EMOVA_BASE}/api/ce/fichero/B",
+        f"{EMOVA_BASE}/api/ce/posiciones?linea=B",
+        f"{EMOVA_BASE}/api/ce/posiciones/B",
+        f"{EMOVA_BASE}/api/ce/ubicaciones?linea=B",
+        f"{EMOVA_BASE}/api/ce/tablero/B"
+    ]
 
-    # 3. Maniobras GraphQL (para estado de boletas/maniobras)
+    for url in rutas_fichero:
+        try:
+            r_pos = requests.get(url, headers=headers, timeout=4)
+            if r_pos.status_code == 200:
+                data = r_pos.json()
+                if isinstance(data, list) and len(data) > 0:
+                    posiciones_fichero = data
+                    break
+                elif isinstance(data, dict) and data.get("posiciones"):
+                    posiciones_fichero = data.get("posiciones")
+                    break
+        except Exception:
+            continue
+
+    # 3. Maniobras GraphQL (de respaldo)
     hoy = datetime.now()
     inicio_str = (hoy - timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")
     fin_str = hoy.strftime("%Y-%m-%d 23:59:59")
