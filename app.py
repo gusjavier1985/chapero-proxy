@@ -15,7 +15,9 @@ def home():
 
 @app.route('/api/posiciones-linea-b', methods=['GET'])
 def posiciones_linea_b():
-    auth_token = os.environ.get("AUTH_TOKEN", "")
+    # .strip() elimina automáticamente saltos de línea, espacios invisibles y comillas
+    raw_token = os.environ.get("AUTH_TOKEN", "")
+    auth_token = raw_token.strip().strip("'").strip('"').replace('\n', '').replace('\r', '')
 
     headers = {
         "x-auth-token": auth_token,
@@ -25,7 +27,7 @@ def posiciones_linea_b():
         "Referer": f"{EMOVA_BASE}/ce/#/lineaB"
     }
 
-    # 1. Requerimientos
+    # 1. Requerimientos del día
     req_data = {}
     try:
         r = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=5)
@@ -36,7 +38,7 @@ def posiciones_linea_b():
     except Exception as e:
         req_data = {"error_excepcion": str(e)}
 
-    # 2. GraphQL Maniobras
+    # 2. GraphQL Maniobras de la Línea B
     hoy = datetime.now()
     inicio_str = (hoy - timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")
     fin_str = hoy.strftime("%Y-%m-%d 23:59:59")
