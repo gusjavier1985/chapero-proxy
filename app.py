@@ -13,7 +13,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chapero Electrónico - Línea B (En Vivo)</title>
+    <title>Chapero Electrónico - Línea B</title>
     <style>
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0b111e; color: #ffffff; margin: 0; padding: 8px; font-size: 12px; }
@@ -40,7 +40,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .train-chip.empty { background: #182232; border: 1px dashed #2a374a; color: #475569; }
         .train-chip.green { background: #15803d; border-color: #22c55e; color: #fff; }
         .train-chip.red { background: #b91c1c; border-color: #ef4444; color: #fff; }
+        .train-chip.black { background: #18181b; border-color: #3f3f46; color: #fff; }
         .train-chip.maroon { background: #581c87; border-color: #7e22ce; color: #e9d5ff; }
+        .train-chip.striped { background: repeating-linear-gradient(45deg, #854d0e, #854d0e 10px, #713f12 10px, #713f12 20px); border-color: #a16207; color: #fff; font-size: 0.7rem; }
 
         .track-prefix { font-size: 0.75rem; color: #e2e8f0; font-weight: 800; margin-right: 6px; opacity: 0.9; }
 
@@ -83,7 +85,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="section-box">
         <div class="sec-title">En Servicio</div>
         <div id="service-grid" class="grid-service">
-            <div class="cell" style="grid-column: span 2;">Conectando con Emova...</div>
+            <div class="cell" style="grid-column: span 2;">Cargando datos reales de Emova...</div>
         </div>
     </div>
 
@@ -91,8 +93,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="section-box">
         <div class="sec-title">Andén Rosas</div>
         <div class="grid-2">
-            <div class="cell"><span class="track-prefix">S</span></div>
-            <div class="cell" id="anden-rosas-n"><span class="track-prefix">N</span></div>
+            <div class="cell" id="rosas-s"><span class="track-prefix">S</span></div>
+            <div class="cell" id="rosas-n"><span class="track-prefix">N</span></div>
         </div>
     </div>
 
@@ -100,134 +102,78 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="section-box">
         <div class="sec-title">Cochera Rosas</div>
         <div class="grid-3" id="cochera-rosas-grid">
-            <div class="cell"><span class="track-prefix">1</span></div>
-            <div class="cell"><span class="track-prefix">1</span></div>
-            <div class="cell"><span class="track-prefix">1</span></div>
-            <div class="cell"><span class="track-prefix">3</span></div>
-            <div class="cell"><span class="track-prefix">3</span></div>
-            <div class="cell"><span class="track-prefix">3</span></div>
-            <div class="cell"><span class="track-prefix">4</span></div>
-            <div class="cell"><span class="track-prefix">2</span></div>
-            <div class="cell"><span class="track-prefix">2</span></div>
+            <div class="cell" id="cr-1a"><span class="track-prefix">1</span></div>
+            <div class="cell" id="cr-1b"><span class="track-prefix">1</span></div>
+            <div class="cell" id="cr-1c"><span class="track-prefix">1</span></div>
+            <div class="cell" id="cr-3a"><span class="track-prefix">3</span></div>
+            <div class="cell" id="cr-3b"><span class="track-prefix">3</span></div>
+            <div class="cell" id="cr-3c"><span class="track-prefix">3</span></div>
+            <div class="cell" id="cr-4a"><span class="track-prefix">4</span></div>
+            <div class="cell" id="cr-2a"><span class="track-prefix">2</span></div>
+            <div class="cell" id="cr-2b"><span class="track-prefix">2</span></div>
         </div>
     </div>
 
     <!-- TALLER URQUIZA -->
     <div class="section-box">
         <div class="sec-title">Taller Urquiza</div>
-        <div class="grid-2" id="urquiza-grid">
-            <div class="cell"><span class="track-prefix">F1</span></div>
-            <div class="cell"><span class="track-prefix">F2</span></div>
-        </div>
-    </div>
-
-    <!-- LOS INCAS -->
-    <div class="section-box">
-        <div class="sec-title">Los Incas</div>
         <div class="grid-2">
-            <div class="cell"><span class="track-prefix">S</span></div>
-            <div class="cell"><span class="track-prefix">N</span></div>
-        </div>
-    </div>
-
-    <!-- RUBÉN DARÍO -->
-    <div class="section-box">
-        <div class="sec-title">Rubén Darío</div>
-        <div class="grid-1"><div class="cell"></div></div>
-    </div>
-
-    <!-- ALEM -->
-    <div class="section-box">
-        <div class="sec-title">Alem</div>
-        <div class="grid-2">
-            <div class="cell"><span class="track-prefix">S</span></div>
-            <div class="cell"><span class="track-prefix">N</span></div>
-        </div>
-    </div>
-
-    <!-- ECHEVERRÍA -->
-    <div class="section-box">
-        <div class="sec-title">Echeverría</div>
-        <div class="grid-2">
-            <div class="cell"><span class="track-prefix">N</span></div>
-            <div class="cell"><span class="track-prefix">N</span></div>
-            <div class="cell"><span class="track-prefix">S</span></div>
-            <div class="cell"><span class="track-prefix">S</span></div>
+            <div class="cell" id="urq-f1"><span class="track-prefix">F1</span></div>
+            <div class="cell" id="urq-f2"><span class="track-prefix">F2</span></div>
         </div>
     </div>
 
     <!-- TALLER RANCAGUA -->
     <div class="section-box">
         <div class="sec-title">Taller Rancagua</div>
-        <div style="display:flex; flex-direction:column; gap:6px;">
-            <div class="grid-2"><div class="cell"><span class="track-prefix">2</span></div><div class="cell"></div></div>
-            <div class="grid-1"><div class="cell"><span class="track-prefix">3</span></div></div>
-            <div class="grid-1"><div class="cell"><span class="track-prefix">4</span></div></div>
-            <div class="grid-1"><div class="cell"><span class="track-prefix">5</span></div></div>
-            <div class="grid-3"><div class="cell"><span class="track-prefix">6</span></div><div class="cell"></div><div class="cell"><span class="track-prefix">6</span></div></div>
-            <div class="grid-2"><div class="cell"><span class="track-prefix">7</span></div><div class="cell"></div></div>
-            <div class="grid-1"><div class="cell"><span class="track-prefix">8</span></div></div>
-            <div class="grid-1"><div class="cell"><span class="track-prefix">9</span></div></div>
-            <div class="grid-2"><div class="cell"><span class="track-prefix">10</span></div><div class="cell"></div></div>
-            <div class="grid-1"><div class="cell"><span class="track-prefix">D</span></div></div>
+        <div style="display:flex; flex-direction:column; gap:6px;" id="rancagua-box">
+            <div class="grid-2"><div class="cell" id="ran-2a"><span class="track-prefix">2</span></div><div class="cell" id="ran-2b"></div></div>
+            <div class="grid-1"><div class="cell" id="ran-3"><span class="track-prefix">3</span></div></div>
+            <div class="grid-1"><div class="cell" id="ran-4"><span class="track-prefix">4</span></div></div>
+            <div class="grid-1"><div class="cell" id="ran-5"><span class="track-prefix">5</span></div></div>
+            <div class="grid-3"><div class="cell" id="ran-6a"><span class="track-prefix">6</span></div><div class="cell" id="ran-6b"></div><div class="cell" id="ran-6c"><span class="track-prefix">6</span></div></div>
+            <div class="grid-2"><div class="cell" id="ran-7a"><span class="track-prefix">7</span></div><div class="cell" id="ran-7b"></div></div>
+            <div class="grid-1"><div class="cell" id="ran-8"><span class="track-prefix">8</span></div></div>
+            <div class="grid-1"><div class="cell" id="ran-9"><span class="track-prefix">9</span></div></div>
+            <div class="grid-2"><div class="cell" id="ran-10a"><span class="track-prefix">10</span></div><div class="cell" id="ran-10b"></div></div>
+            <div class="grid-1"><div class="cell" id="ran-d"><span class="track-prefix">D</span></div></div>
         </div>
     </div>
 
-    <!-- LYNCH -->
-    <div class="section-box">
-        <div class="sec-title">Lynch</div>
-        <div class="grid-3"><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
-    </div>
-
-    <!-- POLVORÍN -->
-    <div class="section-box">
-        <div class="sec-title">Polvorín</div>
-        <div class="grid-3"><div class="cell">OCUPADA</div><div class="cell"></div><div class="cell"></div></div>
-    </div>
-
-    <!-- TJC -->
-    <div class="section-box">
-        <div class="sec-title">TJC</div>
-        <div class="grid-3"><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
-    </div>
-
     <script>
-        async function actualizarEnVivo() {
+        async function sincronizarChaperoReal() {
             try {
                 const res = await fetch('/api/posiciones-linea-b');
-                const json = await res.json();
-                
-                if (json.status === "success") {
-                    // Actualizar contadores superiores
-                    if (json.resumen) {
-                        document.getElementById('cnt-serv').innerText = json.resumen.enServicio;
-                        document.getElementById('cnt-req').innerText = json.resumen.requeridos;
-                        document.getElementById('cnt-disp').innerText = json.resumen.disponibles;
-                    }
-                    if (json.timer) {
-                        document.getElementById('timer-val').innerText = json.timer;
+                const data = await res.json();
+
+                if (data.status === "success") {
+                    // Contadores arriba
+                    if (data.resumen) {
+                        document.getElementById('cnt-serv').innerText = data.resumen.enServicio || "--";
+                        document.getElementById('cnt-req').innerText = data.resumen.requeridos || "--";
+                        document.getElementById('cnt-disp').innerText = data.resumen.disponibles || "--";
                     }
 
-                    // Renderizar En Servicio dinámicamente según la data real
-                    if (json.itinerarios && json.itinerarios.length > 0) {
+                    // Renderizar servicio si vienen itinerarios reales
+                    if (data.servicio && data.servicio.length > 0) {
                         let html = '';
-                        json.itinerarios.forEach(item => {
-                            if (item.f) {
-                                html += '<div class="service-row"><div class="itin-num">' + item.n + '</div><div class="train-chip green">' + item.f + '</div></div>';
+                        data.servicio.forEach(item => {
+                            if (item.formacion) {
+                                html += `<div class="service-row"><div class="itin-num">${item.itinerario}</div><div class="train-chip green">${item.formacion}</div></div>`;
                             } else {
-                                html += '<div class="service-row"><div class="itin-num">' + item.n + '</div><div class="train-chip empty">-</div></div>';
+                                html += `<div class="service-row"><div class="itin-num">${item.itinerario}</div><div class="train-chip empty">-</div></div>`;
                             }
                         });
                         document.getElementById('service-grid').innerHTML = html;
                     }
                 }
             } catch (e) {
-                console.error("Error sincronizando:", e);
+                console.error("Error sincronizando en vivo:", e);
             }
         }
 
-        actualizarEnVivo();
-        setInterval(actualizarEnVivo, 5000); // Se actualiza solo cada 5 segundos trayendo lo de Emova
+        sincronizarChaperoReal();
+        setInterval(sincronizarChaperoReal, 5000);
     </script>
 </body>
 </html>"""
@@ -253,41 +199,25 @@ def posiciones_linea_b():
     }
 
     try:
-        r = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=5)
-        data = r.json() if r.status_code == 200 else {}
-        
-        # Aquí procesamos la respuesta real que viene de la API de Emova
-        # Si la API devuelve los trenes en servicio o formaciones, los mapeamos.
-        # Por ahora extraemos métricas y pasamos itinerarios base actualizables.
-        
-        itinerarios_ejemplo = [
-            {"n": 3, "f": "MITSUBISHI H"}, {"n": 11, "f": "MITSUBISHI K"},
-            {"n": 13, "f": "MITSUBISHI L"}, {"n": 1, "f": "CAF 6000 H1"},
-            {"n": 4, "f": "MITSUBISHI E"}, {"n": 21, "f": ""},
-            {"n": 5, "f": "MITSUBISHI N"}, {"n": 17, "f": "MITSUBISHI Q"},
-            {"n": 14, "f": "CAF 6000 N1"}, {"n": 12, "f": "CAF 6000 K1"},
-            {"n": 22, "f": ""}, {"n": 2, "f": "MITSUBISHI I"},
-            {"n": 6, "f": "MITSUBISHI O"}, {"n": 18, "f": "MITSUBISHI P"},
-            {"n": 19, "f": "MITSUBISHI G"}, {"n": 40, "f": ""},
-            {"n": 7, "f": "CAF 6000 E1"}, {"n": 40, "f": ""},
-            {"n": 15, "f": ""}, {"n": 40, "f": ""},
-            {"n": 8, "f": "MITSUBISHI T"}, {"n": 40, "f": ""},
-            {"n": 9, "f": "CAF 6000 M1"}, {"n": 40, "f": ""},
-            {"n": 20, "f": "CAF 6000 J1"}, {"n": 40, "f": ""},
-            {"n": 16, "f": "CAF 6000 G1"}, {"n": 40, "f": ""},
-            {"n": 10, "f": "MITSUBISHI M"}, {"n": 40, "f": ""}
-        ]
+        # Petición 1: Requerimientos y totales
+        r_req = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=4)
+        data_req = r_req.json() if r_req.status_code == 200 else {}
+
+        # Petición 2: Posiciones reales de formaciones (endpoint oficial del chapero)
+        r_pos = requests.get(f"{EMOVA_BASE}/api/ce/posiciones/B", headers=headers, timeout=4)
+        data_pos = r_pos.json() if r_pos.status_code == 200 else []
+
+        resumen = {
+            "enServicio": data_req.get("enServicio", "--"),
+            "requeridos": data_req.get("requeridos", "--"),
+            "disponibles": data_req.get("disponibles", "--")
+        }
 
         return jsonify({
             "status": "success",
-            "resumen": {
-                "enServicio": data.get("enServicio", 16),
-                "requeridos": data.get("requeridos", 15),
-                "disponibles": data.get("disponibles", 20)
-            },
-            "timer": "10m",
-            "itinerarios": itinerarios_ejemplo,
-            "raw": data
+            "resumen": resumen,
+            "raw_posiciones": data_pos,
+            "servicio": [] # Aquí mapeamos las posiciones reales que devuelva data_pos
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
