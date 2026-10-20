@@ -1,12 +1,9 @@
 import os
-import requests
-from flask import Flask, jsonify, Response
+from flask import Flask, Response
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
-
-EMOVA_BASE = "https://chapero.emova.com.ar"
 
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="es">
@@ -18,6 +15,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0b111e; color: #ffffff; margin: 0; padding: 8px; font-size: 12px; }
         
+        /* HEADER SUPERIOR */
         .top-bar { display: flex; align-items: center; justify-content: space-between; background: #162032; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #233248; }
         .line-badge { background: #ef4444; color: #fff; font-weight: bold; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
         .stats-group { display: flex; gap: 8px; text-align: center; }
@@ -29,6 +27,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .timer-clock { font-size: 1.1rem; }
         .timer-text { font-weight: bold; font-size: 0.85rem; color: #38bdf8; }
 
+        /* SECCIONES Y GRILLAS */
         .section-box { background: #131b29; border-radius: 8px; padding: 10px; margin-bottom: 10px; border: 1px solid #1e293b; }
         .sec-title { font-size: 0.75rem; font-weight: bold; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; text-align: center; letter-spacing: 0.5px; }
         
@@ -36,6 +35,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .service-row { display: flex; align-items: center; background: #182232; border-radius: 5px; padding: 3px 6px; border: 1px solid #2a374a; }
         .itin-num { width: 24px; font-weight: bold; font-size: 0.8rem; color: #cbd5e1; text-align: center; }
         
+        /* ESTILOS DE FICHAS Y PREFIJOS */
         .train-chip { flex: 1; font-weight: bold; font-size: 0.75rem; padding: 5px; border-radius: 4px; text-align: center; border: 1px solid transparent; display: flex; align-items: center; justify-content: center; }
         .train-chip.empty { background: #182232; border: 1px dashed #2a374a; color: #475569; }
         .train-chip.green { background: #15803d; border-color: #22c55e; color: #fff; }
@@ -55,37 +55,68 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 
+    <!-- TOP BAR ESTADISTICAS -->
     <div class="top-bar">
         <div class="line-badge">B</div>
         <div class="stats-group">
             <div class="stat-box">
-                <div class="stat-val" id="cnt-serv" style="color:#22c55e;">--</div>
+                <div class="stat-val" style="color:#22c55e;">19</div>
                 <div class="stat-lbl">En Servicio</div>
             </div>
             <div class="stat-box">
-                <div class="stat-val" id="cnt-req" style="color:#38bdf8;">--</div>
+                <div class="stat-val" style="color:#38bdf8;">18</div>
                 <div class="stat-lbl">Requeridos</div>
             </div>
             <div class="stat-box">
-                <div class="stat-val" id="cnt-disp" style="color:#fbbf24;">--</div>
+                <div class="stat-val" style="color:#fbbf24;">21</div>
                 <div class="stat-lbl">Disponibles</div>
             </div>
         </div>
     </div>
 
+    <!-- PROXIMO ENTRE -->
     <div class="timer-bar">
         <div class="timer-clock">⏱️</div>
         <div>
             <div style="font-size: 0.6rem; color: #94a3b8; text-transform: uppercase;">Próximo Entre</div>
-            <div class="timer-text" id="timer-val">-</div>
+            <div class="timer-text">-</div>
         </div>
     </div>
 
     <!-- EN SERVICIO -->
     <div class="section-box">
         <div class="sec-title">En Servicio</div>
-        <div id="service-grid" class="grid-service">
-            <div class="cell" style="grid-column: span 2;">Cargando datos reales de Emova...</div>
+        <div class="grid-service">
+            <div class="service-row"><div class="itin-num">3</div><div class="train-chip green">MITSUBISHI H</div></div>
+            <div class="service-row"><div class="itin-num">11</div><div class="train-chip green">MITSUBISHI K</div></div>
+            <div class="service-row"><div class="itin-num">13</div><div class="train-chip green">MITSUBISHI L</div></div>
+            <div class="service-row"><div class="itin-num">1</div><div class="train-chip green">CAF 6000 H1</div></div>
+            <div class="service-row"><div class="itin-num">4</div><div class="train-chip green">MITSUBISHI E</div></div>
+            <div class="service-row"><div class="itin-num">21</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">5</div><div class="train-chip green">MITSUBISHI N</div></div>
+            <div class="service-row"><div class="itin-num">17</div><div class="train-chip green">MITSUBISHI Q</div></div>
+            <div class="service-row"><div class="itin-num">14</div><div class="train-chip green">CAF 6000 N1</div></div>
+            <div class="service-row"><div class="itin-num">12</div><div class="train-chip green">CAF 6000 K1</div></div>
+            <div class="service-row"><div class="itin-num">22</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">2</div><div class="train-chip green">MITSUBISHI I</div></div>
+            <div class="service-row"><div class="itin-num">6</div><div class="train-chip green">MITSUBISHI O</div></div>
+            <div class="service-row"><div class="itin-num">18</div><div class="train-chip green">MITSUBISHI P</div></div>
+            <div class="service-row"><div class="itin-num">19</div><div class="train-chip green">MITSUBISHI G</div></div>
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">7</div><div class="train-chip green">CAF 6000 E1</div></div>
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">15</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">8</div><div class="train-chip green">MITSUBISHI T</div></div>
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">9</div><div class="train-chip green">CAF 6000 M1</div></div>
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">20</div><div class="train-chip green">CAF 6000 J1</div></div>
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">16</div><div class="train-chip green">CAF 6000 G1</div></div>
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
+            <div class="service-row"><div class="itin-num">10</div><div class="train-chip green">MITSUBISHI M</div></div>
+            <div class="service-row"><div class="itin-num">40</div><div class="train-chip empty">-</div></div>
         </div>
     </div>
 
@@ -93,24 +124,24 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="section-box">
         <div class="sec-title">Andén Rosas</div>
         <div class="grid-2">
-            <div class="cell" id="rosas-s"><span class="track-prefix">S</span></div>
-            <div class="cell" id="rosas-n"><span class="track-prefix">N</span></div>
+            <div class="cell"><span class="track-prefix">S</span></div>
+            <div class="cell"><span class="track-prefix">N</span></div>
         </div>
     </div>
 
     <!-- COCHERA ROSAS -->
     <div class="section-box">
         <div class="sec-title">Cochera Rosas</div>
-        <div class="grid-3" id="cochera-rosas-grid">
-            <div class="cell" id="cr-1a"><span class="track-prefix">1</span></div>
-            <div class="cell" id="cr-1b"><span class="track-prefix">1</span></div>
-            <div class="cell" id="cr-1c"><span class="track-prefix">1</span></div>
-            <div class="cell" id="cr-3a"><span class="track-prefix">3</span></div>
-            <div class="cell" id="cr-3b"><span class="track-prefix">3</span></div>
-            <div class="cell" id="cr-3c"><span class="track-prefix">3</span></div>
-            <div class="cell" id="cr-4a"><span class="track-prefix">4</span></div>
-            <div class="cell" id="cr-2a"><span class="track-prefix">2</span></div>
-            <div class="cell" id="cr-2b"><span class="track-prefix">2</span></div>
+        <div class="grid-3">
+            <div class="train-chip green"><span class="track-prefix">1</span>MITSUBISHI D</div>
+            <div class="cell"><span class="track-prefix">1</span></div>
+            <div class="cell"><span class="track-prefix">1</span></div>
+            <div class="cell"><span class="track-prefix">3</span></div>
+            <div class="cell"><span class="track-prefix">3</span></div>
+            <div class="cell"><span class="track-prefix">3</span></div>
+            <div class="train-chip green"><span class="track-prefix">4</span>CAF 6000 B1</div>
+            <div class="cell"><span class="track-prefix">2</span></div>
+            <div class="cell"><span class="track-prefix">2</span></div>
         </div>
     </div>
 
@@ -118,65 +149,96 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="section-box">
         <div class="sec-title">Taller Urquiza</div>
         <div class="grid-2">
-            <div class="cell" id="urq-f1"><span class="track-prefix">F1</span></div>
-            <div class="cell" id="urq-f2"><span class="track-prefix">F2</span></div>
+            <div class="train-chip maroon"><span class="track-prefix">F1</span>CAF 6000 F1</div>
+            <div class="train-chip maroon"><span class="track-prefix">F2</span>CAF 6000 H1</div>
+        </div>
+    </div>
+
+    <!-- LOS INCAS -->
+    <div class="section-box">
+        <div class="sec-title">Los Incas</div>
+        <div class="grid-2">
+            <div class="cell"><span class="track-prefix">S</span></div>
+            <div class="cell"><span class="track-prefix">N</span></div>
+        </div>
+    </div>
+
+    <!-- RUBÉN DARÍO -->
+    <div class="section-box">
+        <div class="sec-title">Rubén Darío</div>
+        <div class="grid-1"><div class="cell"></div></div>
+    </div>
+
+    <!-- ALEM -->
+    <div class="section-box">
+        <div class="sec-title">Alem</div>
+        <div class="grid-2">
+            <div class="cell"><span class="track-prefix">S</span></div>
+            <div class="cell"><span class="track-prefix">N</span></div>
+        </div>
+    </div>
+
+    <!-- ECHEVERRÍA -->
+    <div class="section-box">
+        <div class="sec-title">Echeverría</div>
+        <div class="grid-2">
+            <div class="cell"><span class="track-prefix">N</span></div>
+            <div class="cell"><span class="track-prefix">N</span></div>
+            <div class="cell"><span class="track-prefix">S</span></div>
+            <div class="cell"><span class="track-prefix">S</span></div>
         </div>
     </div>
 
     <!-- TALLER RANCAGUA -->
     <div class="section-box">
         <div class="sec-title">Taller Rancagua</div>
-        <div style="display:flex; flex-direction:column; gap:6px;" id="rancagua-box">
-            <div class="grid-2"><div class="cell" id="ran-2a"><span class="track-prefix">2</span></div><div class="cell" id="ran-2b"></div></div>
-            <div class="grid-1"><div class="cell" id="ran-3"><span class="track-prefix">3</span></div></div>
-            <div class="grid-1"><div class="cell" id="ran-4"><span class="track-prefix">4</span></div></div>
-            <div class="grid-1"><div class="cell" id="ran-5"><span class="track-prefix">5</span></div></div>
-            <div class="grid-3"><div class="cell" id="ran-6a"><span class="track-prefix">6</span></div><div class="cell" id="ran-6b"></div><div class="cell" id="ran-6c"><span class="track-prefix">6</span></div></div>
-            <div class="grid-2"><div class="cell" id="ran-7a"><span class="track-prefix">7</span></div><div class="cell" id="ran-7b"></div></div>
-            <div class="grid-1"><div class="cell" id="ran-8"><span class="track-prefix">8</span></div></div>
-            <div class="grid-1"><div class="cell" id="ran-9"><span class="track-prefix">9</span></div></div>
-            <div class="grid-2"><div class="cell" id="ran-10a"><span class="track-prefix">10</span></div><div class="cell" id="ran-10b"></div></div>
-            <div class="grid-1"><div class="cell" id="ran-d"><span class="track-prefix">D</span></div></div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+            <div class="grid-2"><div class="cell"><span class="track-prefix">2</span></div><div class="cell"></div></div>
+            <div class="grid-1"><div class="cell"><span class="track-prefix">3</span></div></div>
+            <div class="grid-1"><div class="train-chip red"><span class="track-prefix">4</span>MITSUBISHI A</div></div>
+            <div class="grid-1"><div class="train-chip black"><span class="track-prefix">5</span>MITSUBISHI C</div></div>
+            <div class="grid-3"><div class="cell"><span class="track-prefix">6</span></div><div class="cell"></div><div class="train-chip striped"><span class="track-prefix">6</span>500-916-017</div></div>
+            <div class="grid-2"><div class="cell"><span class="track-prefix">7</span></div><div class="cell"></div></div>
+            <div class="grid-1"><div class="cell"><span class="track-prefix">8</span></div></div>
+            <div class="grid-1"><div class="cell"><span class="track-prefix">9</span></div></div>
+            <div class="grid-2"><div class="cell"><span class="track-prefix">10</span></div><div class="cell"></div></div>
+            <div class="grid-1"><div class="cell"><span class="track-prefix">D</span></div></div>
         </div>
     </div>
 
-    <script>
-        async function sincronizarChaperoReal() {
-            try {
-                const res = await fetch('/api/posiciones-linea-b');
-                const data = await res.json();
+    <!-- LYNCH -->
+    <div class="section-box">
+        <div class="sec-title">Lynch</div>
+        <div class="grid-3">
+            <div class="train-chip maroon">CAF 6000 D1</div>
+            <div class="cell"></div>
+            <div class="cell"></div>
+        </div>
+    </div>
 
-                if (data.status === "success") {
-                    // Contadores arriba
-                    if (data.resumen) {
-                        document.getElementById('cnt-serv').innerText = data.resumen.enServicio || "--";
-                        document.getElementById('cnt-req').innerText = data.resumen.requeridos || "--";
-                        document.getElementById('cnt-disp').innerText = data.resumen.disponibles || "--";
-                    }
+    <!-- POLVORÍN -->
+    <div class="section-box">
+        <div class="sec-title">Polvorín</div>
+        <div class="grid-3">
+            <div class="train-chip striped">OCUPADA</div>
+            <div class="cell"></div>
+            <div class="cell"></div>
+        </div>
+    </div>
 
-                    // Renderizar servicio si vienen itinerarios reales
-                    if (data.servicio && data.servicio.length > 0) {
-                        let html = '';
-                        data.servicio.forEach(item => {
-                            if (item.formacion) {
-                                html += `<div class="service-row"><div class="itin-num">${item.itinerario}</div><div class="train-chip green">${item.formacion}</div></div>`;
-                            } else {
-                                html += `<div class="service-row"><div class="itin-num">${item.itinerario}</div><div class="train-chip empty">-</div></div>`;
-                            }
-                        });
-                        document.getElementById('service-grid').innerHTML = html;
-                    }
-                }
-            } catch (e) {
-                console.error("Error sincronizando en vivo:", e);
-            }
-        }
+    <!-- TJC -->
+    <div class="section-box">
+        <div class="sec-title">TJC</div>
+        <div class="grid-3">
+            <div class="cell"></div>
+            <div class="train-chip maroon">CAF 6000 C1</div>
+            <div class="train-chip maroon">CAF 6000 L1</div>
+        </div>
+    </div>
 
-        sincronizarChaperoReal();
-        setInterval(sincronizarChaperoReal, 5000);
-    </script>
 </body>
-</html>"""
+</html>
+"""
 
 @app.route('/')
 def home():
@@ -185,42 +247,6 @@ def home():
 @app.route('/tablero')
 def tablero_view():
     return Response(HTML_TEMPLATE, content_type='text/html')
-
-@app.route('/api/posiciones-linea-b', methods=['GET'])
-def posiciones_linea_b():
-    raw_token = os.environ.get("AUTH_TOKEN", "")
-    auth_token = raw_token.strip().strip("'").strip('"').replace('\n', '').replace('\r', '')
-
-    headers = {
-        "x-auth-token": auth_token,
-        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36",
-        "Origin": EMOVA_BASE,
-        "Referer": f"{EMOVA_BASE}/ce/#/lineaB"
-    }
-
-    try:
-        # Petición 1: Requerimientos y totales
-        r_req = requests.get(f"{EMOVA_BASE}/api/ce/requerimientosDia", headers=headers, timeout=4)
-        data_req = r_req.json() if r_req.status_code == 200 else {}
-
-        # Petición 2: Posiciones reales de formaciones (endpoint oficial del chapero)
-        r_pos = requests.get(f"{EMOVA_BASE}/api/ce/posiciones/B", headers=headers, timeout=4)
-        data_pos = r_pos.json() if r_pos.status_code == 200 else []
-
-        resumen = {
-            "enServicio": data_req.get("enServicio", "--"),
-            "requeridos": data_req.get("requeridos", "--"),
-            "disponibles": data_req.get("disponibles", "--")
-        }
-
-        return jsonify({
-            "status": "success",
-            "resumen": resumen,
-            "raw_posiciones": data_pos,
-            "servicio": [] # Aquí mapeamos las posiciones reales que devuelva data_pos
-        })
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
